@@ -1,10 +1,6 @@
-import type { Metadata } from "next";
 import "./globals.css";
-
-export const metadata: Metadata = {
-  title: "PLEIADES Rocket Telemetry Dashboard",
-  description: "Rocket telemetry monitoring system",
-};
+import Link from "next/link";
+import StarBackground from "@/components/StarBackground";
 
 export default function RootLayout({
   children,
@@ -14,45 +10,19 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        {/* 🌌 GLOBAL STARS */}
+        <StarBackground />
 
-        <nav
-          style={{
-            background: "#020c1b",
-            padding: "20px",
-            display: "flex",
-            gap: "40px",
-            fontSize: "20px",
-            fontWeight: "bold",
-          }}
-        >
-          <a href="/" style={{ color: "#00E5FF", textDecoration: "none" }}>
-            Home
-          </a>
-
-          <a
-            href="/dashboard"
-            style={{ color: "#00E5FF", textDecoration: "none" }}
-          >
-            Telemetry
-          </a>
-
-          <a
-            href="/videos"
-            style={{ color: "#00E5FF", textDecoration: "none" }}
-          >
-            Demonstrations
-          </a>
-
-          <a
-            href="/reports"
-            style={{ color: "#00E5FF", textDecoration: "none" }}
-          >
-            Reports
-          </a>
+        {/* 🧭 NAVBAR */}
+        <nav style={{ display: "flex", gap: "20px", padding: "20px" }}>
+          <Link href="/">Home</Link>
+          <Link href="/telemetry">Telemetry</Link>
+          <Link href="/videos">Demonstrations</Link>
+          <Link href="/reports">Reports</Link>
         </nav>
 
-        <main>{children}</main>
-
+        {/* MAIN CONTENT */}
+        <div className="main-content">{children}</div>
       </body>
     </html>
   );

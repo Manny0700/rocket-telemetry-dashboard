@@ -1,94 +1,75 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { GoogleMap, LoadScript, Marker, Polyline } from "@react-google-maps/api";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import RocketScene from "@/components/RocketScene";
 
 export default function HomePage() {
-
-  const [position, setPosition] = useState({
-    lat: 28.6024,
-    lng: -81.2001
-  });
-
-  const [path, setPath] = useState<any[]>([]);
-
-  const launchPad = {
-    lat: 28.6024,
-    lng: -81.2001
-  };
-
-  useEffect(() => {
-
-    const interval = setInterval(() => {
-
-      // Simulated rocket movement
-      const newLat = position.lat + (Math.random() - 0.5) * 0.001;
-      const newLng = position.lng + (Math.random() - 0.5) * 0.001;
-
-      const newPosition = {
-        lat: newLat,
-        lng: newLng
-      };
-
-      setPosition(newPosition);
-
-      setPath(prev => [...prev, newPosition]);
-
-    }, 1000);
-
-    return () => clearInterval(interval);
-
-  }, [position]);
-
   return (
+    <>
+      {/* 🌠 FULL SCREEN SHOOTING STARS */}
+      <div className="shooting-stars-global">
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
 
-    <div style={{ padding: "40px" }}>
+      <div className="container cinematic">
 
-      <h1>PLEIADES Rocket Mission Control</h1>
+        {/* 💥 LAUNCH FLASH */}
+        <motion.div
+          className="flash"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: [0, 1, 0] }}
+          transition={{ duration: 1, delay: 0.5 }}
+        />
 
-      <LoadScript
-        googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!}
-      >
-
-        <GoogleMap
-          mapContainerStyle={{
-            width: "100%",
-            height: "600px"
-          }}
-          zoom={14}
-          center={launchPad}
+        {/* 🚀 3D ROCKET LAUNCH */}
+        <motion.div
+          className="rocket-wrapper"
+          initial={{ y: 80, opacity: 0 }}
+          animate={{ y: [-20, -200], opacity: [1, 1, 0] }}
+          transition={{ duration: 3, delay: 0.5, ease: "easeOut" }}
         >
+          <RocketScene />
+          <div className="trail" />
+        </motion.div>
 
-          {/* Launch Pad */}
+        {/* 🌟 TITLE */}
+        <motion.h1
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.5 }}
+        >
+          PLEIADES Mission Control
+        </motion.h1>
 
-          <Marker
-            position={launchPad}
-            label="Launch"
-          />
+        {/* ✨ SUBTEXT */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2.2 }}
+        >
+          Real-Time Rocket Telemetry & Tracking
+        </motion.p>
 
-          {/* Rocket */}
+        {/* 🔘 BUTTON */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 2.8 }}
+          style={{ marginTop: "40px" }}
+        >
+          <Link href="/telemetry">
+            <span className="cta">
+              Enter Mission Control
+            </span>
+          </Link>
+        </motion.div>
 
-          <Marker
-            position={position}
-            label="Rocket"
-          />
-
-          {/* Trajectory Path */}
-
-          <Polyline
-            path={path}
-            options={{
-              strokeColor: "#00E5FF",
-              strokeOpacity: 1,
-              strokeWeight: 3
-            }}
-          />
-
-        </GoogleMap>
-
-      </LoadScript>
-
-    </div>
-
+      </div>
+    </>
   );
 }
