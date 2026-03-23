@@ -2,60 +2,102 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import RocketScene from "@/components/RocketScene";
 
 export default function HomePage() {
   return (
     <>
-      {/* 🌠 FULL SCREEN SHOOTING STARS */}
-      <div className="shooting-stars-global">
-        <span />
-        <span />
-        <span />
-        <span />
-        <span />
-      </div>
+      {/* 🔲 SCANLINE OVERLAY */}
+      <div className="scanlines" />
 
-      <div className="container cinematic">
+      <div className="hero-container">
 
-        {/* 💥 LAUNCH FLASH */}
+        {/* 🌐 ORBITAL SYSTEM */}
+        <div className="orbital-system">
+
+          {/* CORE PLANET */}
+          <div className="planet-core" />
+
+          {/* RING 1 */}
+          <div className="orbit orbit-1">
+            <div className="orbit-dot" />
+          </div>
+
+          {/* RING 2 */}
+          <div className="orbit orbit-2">
+            <div className="orbit-dot dot-2" />
+          </div>
+
+          {/* RING 3 */}
+          <div className="orbit orbit-3">
+            <div className="orbit-dot dot-3" />
+          </div>
+
+        </div>
+
+        {/* 🌟 TITLE BLOCK */}
         <motion.div
-          className="flash"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: [0, 1, 0] }}
-          transition={{ duration: 1, delay: 0.5 }}
-        />
-
-        {/* 🚀 3D ROCKET LAUNCH */}
-        <motion.div
-          className="rocket-wrapper"
-          initial={{ y: 80, opacity: 0 }}
-          animate={{ y: [-20, -200], opacity: [1, 1, 0] }}
-          transition={{ duration: 3, delay: 0.5, ease: "easeOut" }}
+          className="title-block"
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6, duration: 1 }}
         >
-          <RocketScene />
-          <div className="trail" />
+          <motion.p
+            className="mission-label"
+            initial={{ opacity: 0, letterSpacing: "0.3em" }}
+            animate={{ opacity: 1, letterSpacing: "0.6em" }}
+            transition={{ delay: 0.8, duration: 1.2 }}
+          >
+            MISSION CONTROL
+          </motion.p>
+
+          <motion.h1
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 1.2, duration: 1 }}
+          >
+            PLEIADES
+          </motion.h1>
+
+          <motion.p
+            className="sub-label"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.8 }}
+          >
+            Real-Time Rocket Telemetry & Tracking
+          </motion.p>
         </motion.div>
 
-        {/* 🌟 TITLE */}
-        <motion.h1
-          initial={{ opacity: 0, y: 40 }}
+        {/* 📡 MISSION STATUS BAR */}
+        <motion.div
+          className="status-bar"
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.5 }}
-        >
-          PLEIADES Mission Control
-        </motion.h1>
-
-        {/* ✨ SUBTEXT */}
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
           transition={{ delay: 2.2 }}
         >
-          Real-Time Rocket Telemetry & Tracking
-        </motion.p>
+          <div className="status-item">
+            <span className="status-dot active" />
+            <span className="status-key">STATUS</span>
+            <span className="status-val">NOMINAL</span>
+          </div>
+          <div className="status-divider" />
+          <div className="status-item">
+            <span className="status-key">ORBIT</span>
+            <span className="status-val">420 KM</span>
+          </div>
+          <div className="status-divider" />
+          <div className="status-item">
+            <span className="status-key">VELOCITY</span>
+            <span className="status-val">7.66 KM/S</span>
+          </div>
+          <div className="status-divider" />
+          <div className="status-item">
+            <span className="status-key">MISSION</span>
+            <span className="status-val">ACTIVE</span>
+          </div>
+        </motion.div>
 
-        {/* 🔘 BUTTON */}
+        {/* 🔘 CTA */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -63,9 +105,7 @@ export default function HomePage() {
           style={{ marginTop: "40px" }}
         >
           <Link href="/telemetry">
-            <span className="cta">
-              Enter Mission Control
-            </span>
+            <span className="cta">Enter Mission Control</span>
           </Link>
         </motion.div>
 
