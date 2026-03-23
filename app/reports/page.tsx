@@ -1,90 +1,171 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { getFlightLog } from "../../lib/flightLogger";
 
-export default function ReportsPage() {
+function AnimatedNumber({ value }: { value: number }) {
+  const [display, setDisplay] = useState(0);
 
+  useEffect(() => {
+    let current = 0;
+    const steps = 40;
+    const increment = value / steps;
+    let step = 0;
+    const timer = setInterval(() => {
+      step++;
+      current += increment;
+      if (step >= steps) {
+        setDisplay(value);
+        clearInterval(timer);
+      } else {
+        setDisplay(parseFloat(current.toFixed(2)));
+      }
+    }, 25);
+    return () => clearInterval(timer);
+  }, [value]);
+
+  return <span>{display.toFixed(2)}</span>;
+}
+
+export default function ReportsPage() {
   const [report, setReport] = useState<any>(null);
 
   function generateReport() {
-
     const log = getFlightLog();
-
     if (log.length === 0) {
       alert("No flight data recorded yet.");
       return;
     }
-
-    const maxAltitude = Math.max(...log.map(d => d.altitude));
-    const maxVelocity = Math.max(...log.map(d => d.velocity));
+    const maxAltitude = Math.max(...log.map((d) => d.altitude));
+    const maxVelocity = Math.max(...log.map((d) => d.velocity));
     const flightTime = log[log.length - 1].time;
+    const payload1 = log.find((d) => d.payload1)?.time ?? "N/A";
+    const payload2 = log.find((d) => d.payload2)?.time ?? "N/A";
+    const payload3 = log.find((d) => d.payload3)?.time ?? "N/A";
+    setReport({ maxAltitude, maxVelocity, flightTime, payload1, payload2, payload3 });
+  }
 
-    const payload1 = log.find(d => d.payload1)?.time ?? "N/A";
-    const payload2 = log.find(d => d.payload2)?.time ?? "N/A";
-    const payload3 = log.find(d => d.payload3)?.time ?? "N/A";
-
-    setReport({
-      maxAltitude,
-      maxVelocity,
-      flightTime,
-      payload1,
-      payload2,
-      payload3
-    });
+  function printReport() {
+    window.print();
   }
 
   return (
-    <div style={{ padding: "40px" }}>
+    <div style={{ padding: "40px", maxWidth: "900px", margin: "0 auto" }}>
 
-      <h1>PLEIADES Post-Flight Analysis</h1>
+      <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
+        PLEIADES Post-Flight Analysis
+      </motion.h1>
 
-      <button
-        onClick={generateReport}
-        style={{
-          marginTop: "20px",
-          padding: "12px 20px",
-          background: "#00E5FF",
-          border: "none",
-          borderRadius: "8px",
-          fontSize: "16px",
-          cursor: "pointer"
-        }}
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
       >
-        Generate Flight Report
-      </button>
+        Generate a complete summary of recorded flight telemetry data.
+      </motion.p>
 
-      {report && (
-
-        <div
-          style={{
-            marginTop: "40px",
-            background: "#0b1a2a",
-            padding: "25px",
-            borderRadius: "10px",
-            color: "white"
-          }}
+      <div style={{ display: "flex", gap: "16px", marginTop: "30px", flexWrap: "wrap" }}>
+        <motion.button
+          onClick={generateReport}
+          className="report-btn"
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.97 }}
         >
+          ⚡ Generate Flight Report
+        </motion.button>
 
-          <h2>Flight Summary</h2>
+        {report && (
+          <motion.button
+            onClick={printReport}
+            className="report-btn-outline"
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
+            initial={{ opacity: 0, x: 10 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            🖨️ Export PDF
+          </motion.button>
+        )}
+      </div>
 
-          <p><strong>Maximum Altitude:</strong> {report.maxAltitude.toFixed(2)} m</p>
+      <AnimatePresence>
+        {report && (
+          <motion.div
+            id="report-print"
+            className="report-summary"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="report-header">
+              <div>
+                <h2>PLEIADES Mission Report</h2>
+                <p className="report-date">Generated: {new Date().toLocaleString()}</p>
+              </div>
+              <span className="status-badge badge-deployed">
+                <span className="status-dot dot-green" /> COMPLETE
+              </span>
+            </div>
 
-          <p><strong>Maximum Velocity:</strong> {report.maxVelocity.toFixed(2)} m/s</p>
+            <div className="report-stats-grid">
+              <div className="report-stat-card">
+                <p className="stat-label">Max Altitude</p>
+                <h2 className="stat-value">
+                  <AnimatedNumber value={report.maxAltitude} /> m
+                </h2>
+              </div>
+              <div className="report-stat-card">
+                <p className="stat-label">Max Velocity</p>
+                <h2 className="stat-value">
+                  <AnimatedNumber value={report.maxVelocity} /> m/s
+                </h2>
+              </div>
+              <div className="report-stat-card">
+                <p className="stat-label">Flight Time</p>
+                <h2 className="stat-value">
+                  {report.flightTime}{" "}
+                  <span style={{ fontSize: "16px" }}>sec</span>
+                </h2>
+              </div>
+            </div>
 
-          <p><strong>Total Flight Time:</strong> {report.flightTime} seconds</p>
-
-          <h3>Payload Deployment</h3>
-
-          <p>Payload 1 deployed at T+{report.payload1}</p>
-
-          <p>Payload 2 deployed at T+{report.payload2}</p>
-
-          <p>Payload 3 deployed at T+{report.payload3}</p>
-
-        </div>
-
-      )}
+            <h3 style={{ marginTop: "30px" }}>Payload Deployment Events</h3>
+            <table className="report-table">
+              <thead>
+                <tr>
+                  <th>Payload</th>
+                  <th>Deployment Time</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {[report.payload1, report.payload2, report.payload3].map((time, i) => (
+                  <tr key={i}>
+                    <td>Payload {i + 1}</td>
+                    <td>{time !== "N/A" ? `T+${time}s` : "—"}</td>
+                    <td>
+                      <span
+                        className={`status-badge ${
+                          time !== "N/A" ? "badge-deployed" : "badge-armed"
+                        }`}
+                      >
+                        <span
+                          className={`status-dot ${
+                            time !== "N/A" ? "dot-green" : "dot-yellow"
+                          }`}
+                        />
+                        {time !== "N/A" ? "DEPLOYED" : "NOT DEPLOYED"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

@@ -6,35 +6,23 @@ import Link from "next/link";
 export default function HomePage() {
   return (
     <>
-      {/* 🔲 SCANLINE OVERLAY */}
       <div className="scanlines" />
 
       <div className="hero-container">
 
-        {/* 🌐 ORBITAL SYSTEM */}
         <div className="orbital-system">
-
-          {/* CORE PLANET */}
           <div className="planet-core" />
-
-          {/* RING 1 */}
           <div className="orbit orbit-1">
             <div className="orbit-dot" />
           </div>
-
-          {/* RING 2 */}
           <div className="orbit orbit-2">
             <div className="orbit-dot dot-2" />
           </div>
-
-          {/* RING 3 */}
           <div className="orbit orbit-3">
             <div className="orbit-dot dot-3" />
           </div>
-
         </div>
 
-        {/* 🌟 TITLE BLOCK */}
         <motion.div
           className="title-block"
           initial={{ opacity: 0, y: 30 }}
@@ -68,7 +56,6 @@ export default function HomePage() {
           </motion.p>
         </motion.div>
 
-        {/* 📡 MISSION STATUS BAR */}
         <motion.div
           className="status-bar"
           initial={{ opacity: 0, y: 20 }}
@@ -97,7 +84,6 @@ export default function HomePage() {
           </div>
         </motion.div>
 
-        {/* 🔘 CTA */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
