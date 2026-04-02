@@ -28,6 +28,11 @@ export default function TelemetryPage() {
   const [lat, setLat] = useState<number | null>(null);
   const [lon, setLon] = useState<number | null>(null);
   const [rssi, setRssi] = useState<number | null>(null);
+  const [rawPacket, setRawPacket] = useState<{
+    pkt: number; alt: number; ax: number; ay: number; az: number;
+    lat: number; lon: number; fix: number; crossings: number;
+    servo: number; rssi: number;
+  } | null>(null);
   const tickRef = useRef(0);
 
   const [payloads, setPayloads] = useState([
@@ -36,6 +41,7 @@ export default function TelemetryPage() {
     { id: 3, status: "ARMED" },
   ]);
 
+  // ── WebSocket ──────────────────────────────────────────────
   useEffect(() => {
     let ws: WebSocket;
     let reconnectTimer: ReturnType<typeof setTimeout>;
@@ -43,24 +49,36 @@ export default function TelemetryPage() {
     function connect() {
       ws = new WebSocket("ws://localhost:8765");
 
-      ws.onopen = () => {
-        setConnected(true);
-      };
+      ws.onopen = () => setConnected(true);
 
       ws.onmessage = (event) => {
         try {
           const d = JSON.parse(event.data);
           const t = tickRef.current++;
+
           setCurrentAlt(d.alt ?? 0);
           setCurrentVel(d.vel ?? 0);
           setAltitudeData((prev) => [...prev.slice(-49), d.alt ?? 0]);
           setVelocityData((prev) => [...prev.slice(-49), d.vel ?? 0]);
           setLabels((prev) => [...prev.slice(-49), t]);
+
           if (d.lat && d.lon) { setLat(d.lat); setLon(d.lon); }
           if (d.rssi) setRssi(d.rssi);
+
           if (d.servo === 1) {
             setPayloads((p) => p.map((x) => x.id === 1 ? { ...x, status: "DEPLOYED" } : x));
           }
+
+          setRawPacket({
+            pkt: t,
+            alt: d.alt ?? 0,
+            ax: d.ax ?? 0, ay: d.ay ?? 0, az: d.az ?? 0,
+            lat: d.lat ?? 0, lon: d.lon ?? 0,
+            fix: d.fix ?? 0,
+            crossings: d.crossings ?? 0,
+            servo: d.servo ?? 0,
+            rssi: d.rssi ?? 0,
+          });
         } catch { /* skip bad packets */ }
       };
 
@@ -76,11 +94,13 @@ export default function TelemetryPage() {
     return () => { clearTimeout(reconnectTimer); ws?.close(); };
   }, []);
 
+  // ── MET timer ─────────────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(interval);
   }, []);
 
+  // ── Map loading ───────────────────────────────────────────
   useEffect(() => {
     setTimeout(() => setMapLoading(false), 1200);
   }, []);
@@ -106,6 +126,20 @@ export default function TelemetryPage() {
     },
   };
 
+  const telemetryFields = rawPacket ? [
+    { label: "PKT #",      value: rawPacket.pkt },
+    { label: "ALT (m)",    value: rawPacket.alt.toFixed(2) },
+    { label: "AX (g)",     value: rawPacket.ax.toFixed(3) },
+    { label: "AY (g)",     value: rawPacket.ay.toFixed(3) },
+    { label: "AZ (g)",     value: rawPacket.az.toFixed(3) },
+    { label: "LAT",        value: rawPacket.lat.toFixed(6) },
+    { label: "LON",        value: rawPacket.lon.toFixed(6) },
+    { label: "GPS FIX",    value: rawPacket.fix === 3 ? "3D ✓" : rawPacket.fix === 2 ? "2D" : "NO FIX" },
+    { label: "CROSSINGS",  value: rawPacket.crossings },
+    { label: "SERVO",      value: rawPacket.servo === 1 ? "ACTIVATED" : "WAITING" },
+    { label: "RSSI (dBm)", value: rawPacket.rssi },
+  ] : [];
+
   return (
     <div className="container" style={{ position: "relative" }}>
       <div className="radar-bg" />
@@ -115,6 +149,7 @@ export default function TelemetryPage() {
       </motion.h1>
       <p>Live Rocket Telemetry & Tracking</p>
 
+      {/* Connection status */}
       <div style={{ textAlign: "center", fontSize: "0.75rem", marginBottom: "8px",
         color: connected ? "#00ff9f" : "#ff4d4d", letterSpacing: "0.1em" }}>
         {connected
@@ -122,6 +157,7 @@ export default function TelemetryPage() {
           : "● WAITING FOR ESP32 BRIDGE..."}
       </div>
 
+      {/* MET bar */}
       <motion.div className="met-bar" initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
         <span className="status-dot active" />
@@ -133,21 +169,23 @@ export default function TelemetryPage() {
         <span className="met-val" style={{ color: velColor }}>{currentVel} m/s</span>
       </motion.div>
 
+      {/* Charts */}
       <div className="telemetryGrid">
         <div className="card">
           <h3>Altitude (m)</h3>
           <Line data={{ labels, datasets: [{ data: altitudeData, borderColor: "#00d9ff",
-            borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: "rgba(0,217,255,0.06)" }] }}
-            options={chartOptions} />
+            borderWidth: 2, pointRadius: 0, fill: true,
+            backgroundColor: "rgba(0,217,255,0.06)" }] }} options={chartOptions} />
         </div>
         <div className="card">
           <h3>Velocity (m/s)</h3>
           <Line data={{ labels, datasets: [{ data: velocityData, borderColor: velColor,
-            borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: `${velColor}18` }] }}
-            options={chartOptions} />
+            borderWidth: 2, pointRadius: 0, fill: true,
+            backgroundColor: `${velColor}18` }] }} options={chartOptions} />
         </div>
       </div>
 
+      {/* Map */}
       <div className="card" style={{ marginTop: "40px" }}>
         <h2>Live Tracking</h2>
         {mapLoading ? (
@@ -160,6 +198,50 @@ export default function TelemetryPage() {
         )}
       </div>
 
+      {/* Live Telemetry Feed */}
+      <div className="card" style={{ marginTop: "40px", fontFamily: "monospace" }}>
+        <h2>📡 Live Telemetry Feed</h2>
+        {rawPacket ? (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+            gap: "12px",
+            marginTop: "16px",
+          }}>
+            {telemetryFields.map(({ label, value }) => (
+              <div key={label} style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "8px",
+                padding: "12px 16px",
+              }}>
+                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem",
+                  letterSpacing: "0.1em" }}>
+                  {label}
+                </div>
+                <div style={{
+                  color:
+                    label === "GPS FIX" && rawPacket.fix === 3 ? "#00ff9f" :
+                    label === "GPS FIX" && rawPacket.fix === 0 ? "#ff4d4d" :
+                    label === "SERVO" && rawPacket.servo === 1 ? "#ff4d4d" :
+                    label === "RSSI (dBm)" && rawPacket.rssi < -90 ? "#ffaa00" : "#00d9ff",
+                  fontSize: "1.1rem",
+                  fontWeight: "bold",
+                  marginTop: "4px",
+                }}>
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: "rgba(255,255,255,0.3)", marginTop: "12px" }}>
+            Waiting for telemetry packets...
+          </p>
+        )}
+      </div>
+
+      {/* Payloads */}
       <div className="telemetryGrid" style={{ marginTop: "40px" }}>
         {payloads.map((p) => (
           <div className="card" key={p.id}>
@@ -171,11 +253,14 @@ export default function TelemetryPage() {
               </span>
             </div>
             <p className="payload-sub">
-              {p.status === "DEPLOYED" ? "Separation confirmed. Nominal trajectory." : "Awaiting deployment command."}
+              {p.status === "DEPLOYED"
+                ? "Separation confirmed. Nominal trajectory."
+                : "Awaiting deployment command."}
             </p>
           </div>
         ))}
       </div>
+
     </div>
   );
 }
