@@ -39,12 +39,12 @@ const buildVideos = [
 ];
 
 const buildReports = [
-  { id: 1, title: "Preliminary Design Review (PDR)", href: "/reports/PDR.pdf", date: "2024-08-20", status: "COMPLETE" },
-  { id: 2, title: "Critical Design Review (CDR)", href: "/reports/CDR.pdf", date: "2024-10-15", status: "COMPLETE" },
-  { id: 3, title: "Propulsion & Motor Selection Report", href: "/reports/propulsion.pdf", date: "2024-11-01", status: "COMPLETE" },
-  { id: 4, title: "Structural Analysis Report", href: "/reports/structural.pdf", date: "2024-11-22", status: "COMPLETE" },
-  { id: 5, title: "Avionics & Recovery Systems Report", href: "/reports/avionics.pdf", date: "2024-12-10", status: "COMPLETE" },
-  { id: 6, title: "Pre-Flight Readiness Review (FRR)", href: "/reports/FRR.pdf", date: "2025-01-08", status: "COMPLETE" },
+  { id: 1, title: "M1", href: "/reports/M1.pdf", date: "", status: "COMPLETE" },
+  { id: 2, title: "M2", href: "/reports/M2.pdf", date: "", status: "COMPLETE" },
+  { id: 3, title: "M3", href: "/reports/M3.pdf", date: "", status: "COMPLETE" },
+  { id: 4, title: "M4", href: "/reports/M4.pdf", date: "", status: "COMPLETE" },
+  { id: 5, title: "M5", href: "/reports/M5.pdf", date: "", status: "COMPLETE" },
+  { id: 6, title: "M6", href: "/reports/M6.pdf", date: "", status: "COMPLETE" },
 ];
 
 const buildPhases = [
@@ -189,7 +189,7 @@ export default function BuildPage() {
             <div className="report-icon">📄</div>
             <div className="report-link-info">
               <h3>{r.title}</h3>
-              <p>{r.date}</p>
+              {r.date && <p>{r.date}</p>}
             </div>
             <span className="status-badge badge-deployed">
               <span className="status-dot dot-green" />
