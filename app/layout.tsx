@@ -20,6 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     { href: "/", label: "Home" },
     { href: "/telemetry", label: "Telemetry" },
     { href: "/videos", label: "Demonstrations" },
+    { href: "/build", label: "Build Process" },
     { href: "/reports", label: "Reports" },
   ];
 
@@ -28,7 +29,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <StarBackground />
 
-        {/* 🚀 LOADING SPLASH */}
         <AnimatePresence>
           {loading && (
             <motion.div
@@ -59,7 +59,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           )}
         </AnimatePresence>
 
-        {/* 🧭 NAVBAR */}
         <nav>
           <div className="nav-inner">
             <span className="nav-brand">⬡ PLEIADES</span>
@@ -84,7 +83,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
         </nav>
 
-        {/* 🌐 PAGE TRANSITIONS */}
         <AnimatePresence mode="wait">
           <motion.div
             key={pathname}
