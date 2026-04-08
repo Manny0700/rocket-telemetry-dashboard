@@ -13,6 +13,7 @@ import {
   Filler,
   Tooltip,
 } from "chart.js";
+import { logTelemetry } from "@/lib/flightLogger";
 
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Filler, Tooltip);
 
@@ -41,7 +42,6 @@ export default function TelemetryPage() {
     { id: 3, status: "ARMED" },
   ]);
 
-  // ── WebSocket ──────────────────────────────────────────────
   useEffect(() => {
     let ws: WebSocket;
     let reconnectTimer: ReturnType<typeof setTimeout>;
@@ -56,10 +56,28 @@ export default function TelemetryPage() {
           const d = JSON.parse(event.data);
           const t = tickRef.current++;
 
-          setCurrentAlt(d.alt ?? 0);
-          setCurrentVel(d.vel ?? 0);
-          setAltitudeData((prev) => [...prev.slice(-49), d.alt ?? 0]);
-          setVelocityData((prev) => [...prev.slice(-49), d.vel ?? 0]);
+          const point = {
+            time: t,
+            alt:      d.alt       ?? 0,
+            vel:      d.vel       ?? 0,
+            ax:       d.ax        ?? 0,
+            ay:       d.ay        ?? 0,
+            az:       d.az        ?? 0,
+            lat:      d.lat       ?? 0,
+            lon:      d.lon       ?? 0,
+            fix:      d.fix       ?? 0,
+            crossings: d.crossings ?? 0,
+            servo:    d.servo      ?? 0,
+            rssi:     d.rssi       ?? 0,
+          };
+
+          // ── Log every packet for flight report ──
+          logTelemetry(point);
+
+          setCurrentAlt(point.alt);
+          setCurrentVel(point.vel);
+          setAltitudeData((prev) => [...prev.slice(-49), point.alt]);
+          setVelocityData((prev) => [...prev.slice(-49), point.vel]);
           setLabels((prev) => [...prev.slice(-49), t]);
 
           if (d.lat && d.lon) { setLat(d.lat); setLon(d.lon); }
@@ -69,16 +87,7 @@ export default function TelemetryPage() {
             setPayloads((p) => p.map((x) => x.id === 1 ? { ...x, status: "DEPLOYED" } : x));
           }
 
-          setRawPacket({
-            pkt: t,
-            alt: d.alt ?? 0,
-            ax: d.ax ?? 0, ay: d.ay ?? 0, az: d.az ?? 0,
-            lat: d.lat ?? 0, lon: d.lon ?? 0,
-            fix: d.fix ?? 0,
-            crossings: d.crossings ?? 0,
-            servo: d.servo ?? 0,
-            rssi: d.rssi ?? 0,
-          });
+          setRawPacket({ pkt: t, ...point });
         } catch { /* skip bad packets */ }
       };
 
@@ -94,13 +103,11 @@ export default function TelemetryPage() {
     return () => { clearTimeout(reconnectTimer); ws?.close(); };
   }, []);
 
-  // ── MET timer ─────────────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // ── Map loading ───────────────────────────────────────────
   useEffect(() => {
     setTimeout(() => setMapLoading(false), 1200);
   }, []);
@@ -149,7 +156,6 @@ export default function TelemetryPage() {
       </motion.h1>
       <p>Live Rocket Telemetry & Tracking</p>
 
-      {/* Connection status */}
       <div style={{ textAlign: "center", fontSize: "0.75rem", marginBottom: "8px",
         color: connected ? "#00ff9f" : "#ff4d4d", letterSpacing: "0.1em" }}>
         {connected
@@ -157,7 +163,6 @@ export default function TelemetryPage() {
           : "● WAITING FOR ESP32 BRIDGE..."}
       </div>
 
-      {/* MET bar */}
       <motion.div className="met-bar" initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
         <span className="status-dot active" />
@@ -169,7 +174,6 @@ export default function TelemetryPage() {
         <span className="met-val" style={{ color: velColor }}>{currentVel} m/s</span>
       </motion.div>
 
-      {/* Charts */}
       <div className="telemetryGrid">
         <div className="card">
           <h3>Altitude (m)</h3>
@@ -185,7 +189,6 @@ export default function TelemetryPage() {
         </div>
       </div>
 
-      {/* Map */}
       <div className="card" style={{ marginTop: "40px" }}>
         <h2>Live Tracking</h2>
         {mapLoading ? (
@@ -198,7 +201,6 @@ export default function TelemetryPage() {
         )}
       </div>
 
-      {/* Live Telemetry Feed */}
       <div className="card" style={{ marginTop: "40px", fontFamily: "monospace" }}>
         <h2>📡 Live Telemetry Feed</h2>
         {rawPacket ? (
@@ -241,7 +243,6 @@ export default function TelemetryPage() {
         )}
       </div>
 
-      {/* Payloads */}
       <div className="telemetryGrid" style={{ marginTop: "40px" }}>
         {payloads.map((p) => (
           <div className="card" key={p.id}>
