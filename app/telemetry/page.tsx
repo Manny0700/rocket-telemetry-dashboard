@@ -17,7 +17,6 @@ import { logTelemetry } from "@/lib/flightLogger";
 
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Filler, Tooltip);
 
-// Haversine distance in km between two lat/lon points
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -49,7 +48,7 @@ export default function TelemetryPage() {
   } | null>(null);
   const tickRef = useRef(0);
 
-  // Ground station location
+  // Ground station
   const [gsLat, setGsLat] = useState<number | null>(null);
   const [gsLon, setGsLon] = useState<number | null>(null);
   const [gsAccuracy, setGsAccuracy] = useState<number | null>(null);
@@ -85,14 +84,17 @@ export default function TelemetryPage() {
     );
   }
 
-  // Auto-request on mount
   useEffect(() => { locateGroundStation(); }, []);
 
-  // Distance rocket ↔ ground station
   const distance =
     gsLat && gsLon && lat && lon
       ? haversineKm(gsLat, gsLon, lat, lon).toFixed(3)
       : null;
+
+  // Google Maps embed URL centered on ground station
+  const googleMapsUrl = gsLat && gsLon
+    ? `https://www.google.com/maps?q=${gsLat},${gsLon}&z=16&output=embed`
+    : null;
 
   // ── WebSocket ──────────────────────────────────────────────
   useEffect(() => {
@@ -243,33 +245,49 @@ export default function TelemetryPage() {
         )}
 
         {gsLat && gsLon ? (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-            gap: "12px",
-            marginTop: "16px",
-          }}>
-            {[
-              { label: "LATITUDE",   value: gsLat.toFixed(6) + "°" },
-              { label: "LONGITUDE",  value: gsLon.toFixed(6) + "°" },
-              { label: "ACCURACY",   value: gsAccuracy ? `±${gsAccuracy} m` : "—" },
-              { label: "ROCKET DIST", value: distance ? `${distance} km` : lat && lon ? "calculating..." : "no rocket GPS" },
-            ].map(({ label, value }) => (
-              <div key={label} style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: "8px",
-                padding: "12px 16px",
-              }}>
-                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>
-                  {label}
+          <>
+            {/* Stats row */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+              gap: "12px",
+              marginTop: "16px",
+            }}>
+              {[
+                { label: "LATITUDE",    value: gsLat.toFixed(6) + "°" },
+                { label: "LONGITUDE",   value: gsLon.toFixed(6) + "°" },
+                { label: "ACCURACY",    value: gsAccuracy ? `±${gsAccuracy} m` : "—" },
+                { label: "ROCKET DIST", value: distance ? `${distance} km` : lat && lon ? "calculating..." : "no rocket GPS" },
+              ].map(({ label, value }) => (
+                <div key={label} style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                }}>
+                  <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>
+                    {label}
+                  </div>
+                  <div style={{ color: "#00d9ff", fontSize: "1.1rem", fontWeight: "bold", marginTop: "4px" }}>
+                    {value}
+                  </div>
                 </div>
-                <div style={{ color: "#00d9ff", fontSize: "1.1rem", fontWeight: "bold", marginTop: "4px" }}>
-                  {value}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            {/* Google Maps embed */}
+            <div style={{ marginTop: "16px", borderRadius: "10px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <iframe
+                src={googleMapsUrl!}
+                width="100%"
+                height="320"
+                style={{ border: 0, display: "block" }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </>
         ) : !gsLoading && (
           <p style={{ color: "rgba(255,255,255,0.3)", marginTop: 12, fontSize: "0.85rem" }}>
             Allow location access in your browser to show ground station coordinates.
@@ -293,7 +311,7 @@ export default function TelemetryPage() {
         </div>
       </div>
 
-      {/* ── Map ── */}
+      {/* ── Rocket Live Tracking Map ── */}
       <div className="card" style={{ marginTop: "40px" }}>
         <h2>Live Tracking</h2>
         {mapLoading ? (
