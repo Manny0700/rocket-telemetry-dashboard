@@ -4,6 +4,10 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { getFlightLog, clearFlightLog } from "../../lib/flightLogger";
 
+const mToFt  = (m: number)  => m  * 3.28084;
+const msToFts = (ms: number) => ms * 3.28084;
+const kmToMi  = (km: number) => km * 0.621371;
+
 function AnimatedNumber({ value }: { value: number }) {
   const [display, setDisplay] = useState(0);
   useState(() => {
@@ -12,10 +16,10 @@ function AnimatedNumber({ value }: { value: number }) {
     const timer = setInterval(() => {
       step++;
       if (step >= steps) { setDisplay(value); clearInterval(timer); }
-      else setDisplay(parseFloat(((value / steps) * step).toFixed(2)));
+      else setDisplay(parseFloat(((value / steps) * step).toFixed(1)));
     }, 25);
   });
-  return <span>{display.toFixed(2)}</span>;
+  return <span>{display.toFixed(1)}</span>;
 }
 
 export default function ReportsPage() {
@@ -28,32 +32,34 @@ export default function ReportsPage() {
       return;
     }
 
-    const maxAltitude   = Math.max(...log.map((d) => d.alt));
-    const maxVelocity   = Math.max(...log.map((d) => d.vel));
-    const avgRssi       = Math.round(log.map((d) => d.rssi).filter(Boolean).reduce((a, b) => a + b, 0) / log.filter((d) => d.rssi).length);
-    const flightTime    = log[log.length - 1].time.toFixed(1);
-    const totalPackets  = log.length;
+    const maxAltitudeFt  = mToFt(Math.max(...log.map((d) => d.alt)));
+    const maxVelocityFts = msToFts(Math.max(...log.map((d) => d.vel)));
+    const avgRssi        = Math.round(log.map((d) => d.rssi).filter(Boolean).reduce((a, b) => a + b, 0) / log.filter((d) => d.rssi).length);
+    const flightTime     = log[log.length - 1].time.toFixed(1);
+    const totalPackets   = log.length;
+    const peakAccel      = Math.max(...log.map((d) => Math.sqrt(d.ax ** 2 + d.ay ** 2 + d.az ** 2)));
+    const apogeePoint    = log.reduce((a, b) => (a.alt > b.alt ? a : b));
+    const crossings      = log[log.length - 1].crossings;
+    const servoEvent     = log.find((d) => d.servo === 1);
+    const servoTime      = servoEvent ? servoEvent.time.toFixed(1) : null;
+    const fix3dCount     = log.filter((d) => d.fix === 3).length;
+    const gpsCoverage    = Math.round((fix3dCount / totalPackets) * 100);
 
-    // Peak acceleration magnitude
-    const peakAccel = Math.max(...log.map((d) => Math.sqrt(d.ax ** 2 + d.ay ** 2 + d.az ** 2)));
-
-    // Apogee point
-    const apogeePoint = log.reduce((a, b) => (a.alt > b.alt ? a : b));
-
-    // Zero crossings (last recorded value)
-    const crossings = log[log.length - 1].crossings;
-
-    // Servo / payload deployment
-    const servoEvent = log.find((d) => d.servo === 1);
-    const servoTime  = servoEvent ? servoEvent.time.toFixed(1) : null;
-
-    // GPS lock quality
-    const fix3dCount = log.filter((d) => d.fix === 3).length;
-    const gpsCoverage = Math.round((fix3dCount / totalPackets) * 100);
+    // Distance from first to last GPS point in miles
+    const first = log.find((d) => d.lat && d.lon);
+    const last  = [...log].reverse().find((d) => d.lat && d.lon);
+    let rangeKm: number | null = null;
+    if (first && last) {
+      const R = 6371;
+      const dLat = ((last.lat - first.lat) * Math.PI) / 180;
+      const dLon = ((last.lon - first.lon) * Math.PI) / 180;
+      const a = Math.sin(dLat/2)**2 + Math.cos(first.lat*Math.PI/180)*Math.cos(last.lat*Math.PI/180)*Math.sin(dLon/2)**2;
+      rangeKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    }
 
     setReport({
-      maxAltitude,
-      maxVelocity,
+      maxAltitudeFt,
+      maxVelocityFts,
       flightTime,
       totalPackets,
       peakAccel,
@@ -61,10 +67,11 @@ export default function ReportsPage() {
       crossings,
       servoTime,
       gpsCoverage,
+      rangeMi: rangeKm !== null ? kmToMi(rangeKm).toFixed(3) : null,
       apogee: {
-        lat: apogeePoint.lat,
-        lon: apogeePoint.lon,
-        alt: apogeePoint.alt,
+        lat:  apogeePoint.lat,
+        lon:  apogeePoint.lon,
+        altFt: mToFt(apogeePoint.alt),
         time: apogeePoint.time.toFixed(1),
       },
     });
@@ -86,7 +93,6 @@ export default function ReportsPage() {
           whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}>
           ⚡ Generate Flight Report
         </motion.button>
-
         {report && (
           <>
             <motion.button onClick={() => window.print()} className="report-btn-outline"
@@ -121,15 +127,15 @@ export default function ReportsPage() {
               </span>
             </div>
 
-            {/* ── Primary Stats ── */}
+            {/* Primary Stats */}
             <div className="report-stats-grid">
               <div className="report-stat-card">
                 <p className="stat-label">Max Altitude</p>
-                <h2 className="stat-value"><AnimatedNumber value={report.maxAltitude} /> m</h2>
+                <h2 className="stat-value"><AnimatedNumber value={report.maxAltitudeFt} /> ft</h2>
               </div>
               <div className="report-stat-card">
                 <p className="stat-label">Max Velocity</p>
-                <h2 className="stat-value"><AnimatedNumber value={report.maxVelocity} /> m/s</h2>
+                <h2 className="stat-value"><AnimatedNumber value={report.maxVelocityFts} /> ft/s</h2>
               </div>
               <div className="report-stat-card">
                 <p className="stat-label">Flight Time</p>
@@ -137,7 +143,7 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* ── Secondary Stats ── */}
+            {/* Secondary Stats */}
             <div className="report-stats-grid" style={{ marginTop: "16px" }}>
               <div className="report-stat-card">
                 <p className="stat-label">Peak Acceleration</p>
@@ -153,26 +159,23 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* ── Apogee ── */}
+            {/* Apogee */}
             <h3 style={{ marginTop: "30px" }}>Apogee Coordinates</h3>
             <table className="report-table">
-              <thead>
-                <tr><th>Parameter</th><th>Value</th></tr>
-              </thead>
+              <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
               <tbody>
-                <tr><td>Altitude</td><td>{report.apogee.alt.toFixed(2)} m</td></tr>
+                <tr><td>Altitude</td><td>{report.apogee.altFt.toFixed(1)} ft</td></tr>
                 <tr><td>Time</td><td>T+{report.apogee.time}s</td></tr>
                 <tr><td>Latitude</td><td>{report.apogee.lat.toFixed(6)}°</td></tr>
                 <tr><td>Longitude</td><td>{report.apogee.lon.toFixed(6)}°</td></tr>
+                {report.rangeMi && <tr><td>Downrange Distance</td><td>{report.rangeMi} mi</td></tr>}
               </tbody>
             </table>
 
-            {/* ── Payload / Servo ── */}
+            {/* Payload / Servo */}
             <h3 style={{ marginTop: "30px" }}>Payload Deployment</h3>
             <table className="report-table">
-              <thead>
-                <tr><th>Event</th><th>Time</th><th>Status</th></tr>
-              </thead>
+              <thead><tr><th>Event</th><th>Time</th><th>Status</th></tr></thead>
               <tbody>
                 <tr>
                   <td>Servo Activation</td>
@@ -184,10 +187,7 @@ export default function ReportsPage() {
                     </span>
                   </td>
                 </tr>
-                <tr>
-                  <td>Zero Crossings</td>
-                  <td colSpan={2}>{report.crossings}</td>
-                </tr>
+                <tr><td>Zero Crossings</td><td colSpan={2}>{report.crossings}</td></tr>
               </tbody>
             </table>
 

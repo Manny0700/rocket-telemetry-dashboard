@@ -17,6 +17,10 @@ import { logTelemetry } from "@/lib/flightLogger";
 
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Filler, Tooltip);
 
+const mToFt = (m: number) => m * 3.28084;
+const msToFts = (ms: number) => ms * 3.28084;
+const kmToMi = (km: number) => km * 0.621371;
+
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -48,7 +52,6 @@ export default function TelemetryPage() {
   } | null>(null);
   const tickRef = useRef(0);
 
-  // Ground station
   const [gsLat, setGsLat] = useState<number | null>(null);
   const [gsLon, setGsLon] = useState<number | null>(null);
   const [gsAccuracy, setGsAccuracy] = useState<number | null>(null);
@@ -61,7 +64,6 @@ export default function TelemetryPage() {
     { id: 3, status: "ARMED" },
   ]);
 
-  // ── Ground Station Geolocation ─────────────────────────────
   function locateGroundStation() {
     if (!navigator.geolocation) {
       setGsError("Geolocation not supported by this browser.");
@@ -73,7 +75,7 @@ export default function TelemetryPage() {
       (pos) => {
         setGsLat(pos.coords.latitude);
         setGsLon(pos.coords.longitude);
-        setGsAccuracy(Math.round(pos.coords.accuracy));
+        setGsAccuracy(Math.round(pos.coords.accuracy * 3.28084)); // m → ft
         setGsLoading(false);
       },
       (err) => {
@@ -86,17 +88,15 @@ export default function TelemetryPage() {
 
   useEffect(() => { locateGroundStation(); }, []);
 
-  const distance =
+  const distanceMi =
     gsLat && gsLon && lat && lon
-      ? haversineKm(gsLat, gsLon, lat, lon).toFixed(3)
+      ? kmToMi(haversineKm(gsLat, gsLon, lat, lon)).toFixed(3)
       : null;
 
-  // Google Maps embed URL centered on ground station
   const googleMapsUrl = gsLat && gsLon
     ? `https://www.google.com/maps?q=${gsLat},${gsLon}&z=16&output=embed`
     : null;
 
-  // ── WebSocket ──────────────────────────────────────────────
   useEffect(() => {
     let ws: WebSocket;
     let reconnectTimer: ReturnType<typeof setTimeout>;
@@ -109,7 +109,7 @@ export default function TelemetryPage() {
           const d = JSON.parse(event.data);
           const t = tickRef.current++;
           const point = {
-            time: t,
+            time:      t,
             alt:       d.alt       ?? 0,
             vel:       d.vel       ?? 0,
             ax:        d.ax        ?? 0,
@@ -125,8 +125,9 @@ export default function TelemetryPage() {
           logTelemetry(point);
           setCurrentAlt(point.alt);
           setCurrentVel(point.vel);
-          setAltitudeData((prev) => [...prev.slice(-49), point.alt]);
-          setVelocityData((prev) => [...prev.slice(-49), point.vel]);
+          // Store converted values in charts
+          setAltitudeData((prev) => [...prev.slice(-49), mToFt(point.alt)]);
+          setVelocityData((prev) => [...prev.slice(-49), msToFts(point.vel)]);
           setLabels((prev) => [...prev.slice(-49), t]);
           if (d.lat && d.lon) { setLat(d.lat); setLon(d.lon); }
           if (d.rssi) setRssi(d.rssi);
@@ -158,7 +159,9 @@ export default function TelemetryPage() {
     return `${h}:${m}:${sec}`;
   };
 
-  const velColor = currentVel > 200 ? "#ff4d4d" : currentVel > 100 ? "#ffaa00" : "#00ff9f";
+  const currentAltFt = mToFt(currentAlt);
+  const currentVelFts = msToFts(currentVel);
+  const velColor = currentVelFts > 656 ? "#ff4d4d" : currentVelFts > 328 ? "#ffaa00" : "#00ff9f";
 
   const chartOptions = {
     animation: { duration: 300 } as const,
@@ -173,17 +176,17 @@ export default function TelemetryPage() {
   };
 
   const telemetryFields = rawPacket ? [
-    { label: "PKT #",      value: rawPacket.pkt },
-    { label: "ALT (m)",    value: rawPacket.alt.toFixed(2) },
-    { label: "AX (g)",     value: rawPacket.ax.toFixed(3) },
-    { label: "AY (g)",     value: rawPacket.ay.toFixed(3) },
-    { label: "AZ (g)",     value: rawPacket.az.toFixed(3) },
-    { label: "LAT",        value: rawPacket.lat.toFixed(6) },
-    { label: "LON",        value: rawPacket.lon.toFixed(6) },
-    { label: "GPS FIX",    value: rawPacket.fix === 3 ? "3D ✓" : rawPacket.fix === 2 ? "2D" : "NO FIX" },
-    { label: "CROSSINGS",  value: rawPacket.crossings },
-    { label: "SERVO",      value: rawPacket.servo === 1 ? "ACTIVATED" : "WAITING" },
-    { label: "RSSI (dBm)", value: rawPacket.rssi },
+    { label: "PKT #",       value: rawPacket.pkt },
+    { label: "ALT (ft)",    value: mToFt(rawPacket.alt).toFixed(1) },
+    { label: "AX (g)",      value: rawPacket.ax.toFixed(3) },
+    { label: "AY (g)",      value: rawPacket.ay.toFixed(3) },
+    { label: "AZ (g)",      value: rawPacket.az.toFixed(3) },
+    { label: "LAT",         value: rawPacket.lat.toFixed(6) },
+    { label: "LON",         value: rawPacket.lon.toFixed(6) },
+    { label: "GPS FIX",     value: rawPacket.fix === 3 ? "3D ✓" : rawPacket.fix === 2 ? "2D" : "NO FIX" },
+    { label: "CROSSINGS",   value: rawPacket.crossings },
+    { label: "SERVO",       value: rawPacket.servo === 1 ? "ACTIVATED" : "WAITING" },
+    { label: "RSSI (dBm)",  value: rawPacket.rssi },
   ] : [];
 
   return (
@@ -208,74 +211,53 @@ export default function TelemetryPage() {
         <span className="met-label">MET</span>
         <span className="met-time">{formatTime(elapsed)}</span>
         <span className="met-label" style={{ marginLeft: "24px" }}>ALT</span>
-        <span className="met-val">{currentAlt} m</span>
+        <span className="met-val">{currentAltFt.toFixed(1)} ft</span>
         <span className="met-label" style={{ marginLeft: "24px" }}>VEL</span>
-        <span className="met-val" style={{ color: velColor }}>{currentVel} m/s</span>
+        <span className="met-val" style={{ color: velColor }}>{currentVelFts.toFixed(1)} ft/s</span>
       </motion.div>
 
       {/* ── Ground Station Card ── */}
-      <motion.div
-        className="card"
-        style={{ marginTop: "32px" }}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-      >
+      <motion.div className="card" style={{ marginTop: "32px" }}
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <h2 style={{ margin: 0 }}>🖥️ Ground Station</h2>
-          <button
-            onClick={locateGroundStation}
-            style={{
-              background: "rgba(0,217,255,0.1)",
-              border: "1px solid rgba(0,217,255,0.3)",
-              color: "#00d9ff",
-              padding: "6px 14px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "0.75rem",
-              letterSpacing: "0.08em",
-            }}
-          >
+          <button onClick={locateGroundStation} style={{
+            background: "rgba(0,217,255,0.1)",
+            border: "1px solid rgba(0,217,255,0.3)",
+            color: "#00d9ff", padding: "6px 14px",
+            borderRadius: "6px", cursor: "pointer",
+            fontSize: "0.75rem", letterSpacing: "0.08em",
+          }}>
             {gsLoading ? "LOCATING..." : "⟳ REFRESH"}
           </button>
         </div>
 
-        {gsError && (
-          <p style={{ color: "#ff4d4d", fontSize: "0.8rem", marginTop: 12 }}>{gsError}</p>
-        )}
+        {gsError && <p style={{ color: "#ff4d4d", fontSize: "0.8rem", marginTop: 12 }}>{gsError}</p>}
 
         {gsLat && gsLon ? (
           <>
-            {/* Stats row */}
             <div style={{
               display: "grid",
               gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-              gap: "12px",
-              marginTop: "16px",
+              gap: "12px", marginTop: "16px",
             }}>
               {[
                 { label: "LATITUDE",    value: gsLat.toFixed(6) + "°" },
                 { label: "LONGITUDE",   value: gsLon.toFixed(6) + "°" },
-                { label: "ACCURACY",    value: gsAccuracy ? `±${gsAccuracy} m` : "—" },
-                { label: "ROCKET DIST", value: distance ? `${distance} km` : lat && lon ? "calculating..." : "no rocket GPS" },
+                { label: "ACCURACY",    value: gsAccuracy ? `±${gsAccuracy} ft` : "—" },
+                { label: "ROCKET DIST", value: distanceMi ? `${distanceMi} mi` : lat && lon ? "calculating..." : "no rocket GPS" },
               ].map(({ label, value }) => (
                 <div key={label} style={{
                   background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(255,255,255,0.08)",
-                  borderRadius: "8px",
-                  padding: "12px 16px",
+                  borderRadius: "8px", padding: "12px 16px",
                 }}>
-                  <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>
-                    {label}
-                  </div>
-                  <div style={{ color: "#00d9ff", fontSize: "1.1rem", fontWeight: "bold", marginTop: "4px" }}>
-                    {value}
-                  </div>
+                  <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>{label}</div>
+                  <div style={{ color: "#00d9ff", fontSize: "1.1rem", fontWeight: "bold", marginTop: "4px" }}>{value}</div>
                 </div>
               ))}
             </div>
 
-            {/* Google Maps embed */}
             <div style={{ marginTop: "16px", borderRadius: "10px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
               <iframe
                 src={googleMapsUrl!}
@@ -298,20 +280,20 @@ export default function TelemetryPage() {
       {/* ── Charts ── */}
       <div className="telemetryGrid">
         <div className="card">
-          <h3>Altitude (m)</h3>
+          <h3>Altitude (ft)</h3>
           <Line data={{ labels, datasets: [{ data: altitudeData, borderColor: "#00d9ff",
             borderWidth: 2, pointRadius: 0, fill: true,
             backgroundColor: "rgba(0,217,255,0.06)" }] }} options={chartOptions} />
         </div>
         <div className="card">
-          <h3>Velocity (m/s)</h3>
+          <h3>Velocity (ft/s)</h3>
           <Line data={{ labels, datasets: [{ data: velocityData, borderColor: velColor,
             borderWidth: 2, pointRadius: 0, fill: true,
             backgroundColor: `${velColor}18` }] }} options={chartOptions} />
         </div>
       </div>
 
-      {/* ── Rocket Live Tracking Map ── */}
+      {/* ── Rocket Live Tracking ── */}
       <div className="card" style={{ marginTop: "40px" }}>
         <h2>Live Tracking</h2>
         {mapLoading ? (
@@ -331,28 +313,22 @@ export default function TelemetryPage() {
           <div style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: "12px",
-            marginTop: "16px",
+            gap: "12px", marginTop: "16px",
           }}>
             {telemetryFields.map(({ label, value }) => (
               <div key={label} style={{
                 background: "rgba(255,255,255,0.04)",
                 border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: "8px",
-                padding: "12px 16px",
+                borderRadius: "8px", padding: "12px 16px",
               }}>
-                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>
-                  {label}
-                </div>
+                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>{label}</div>
                 <div style={{
                   color:
                     label === "GPS FIX" && rawPacket.fix === 3 ? "#00ff9f" :
                     label === "GPS FIX" && rawPacket.fix === 0 ? "#ff4d4d" :
                     label === "SERVO" && rawPacket.servo === 1 ? "#ff4d4d" :
                     label === "RSSI (dBm)" && rawPacket.rssi < -90 ? "#ffaa00" : "#00d9ff",
-                  fontSize: "1.1rem",
-                  fontWeight: "bold",
-                  marginTop: "4px",
+                  fontSize: "1.1rem", fontWeight: "bold", marginTop: "4px",
                 }}>
                   {value}
                 </div>
