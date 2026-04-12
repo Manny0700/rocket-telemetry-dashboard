@@ -17,6 +17,19 @@ import { logTelemetry } from "@/lib/flightLogger";
 
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Filler, Tooltip);
 
+// Haversine distance in km between two lat/lon points
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function TelemetryPage() {
   const [altitudeData, setAltitudeData] = useState<number[]>([]);
   const [velocityData, setVelocityData] = useState<number[]>([]);
@@ -36,66 +49,92 @@ export default function TelemetryPage() {
   } | null>(null);
   const tickRef = useRef(0);
 
+  // Ground station location
+  const [gsLat, setGsLat] = useState<number | null>(null);
+  const [gsLon, setGsLon] = useState<number | null>(null);
+  const [gsAccuracy, setGsAccuracy] = useState<number | null>(null);
+  const [gsError, setGsError] = useState<string | null>(null);
+  const [gsLoading, setGsLoading] = useState(false);
+
   const [payloads, setPayloads] = useState([
     { id: 1, status: "ARMED" },
     { id: 2, status: "ARMED" },
     { id: 3, status: "ARMED" },
   ]);
 
+  // ── Ground Station Geolocation ─────────────────────────────
+  function locateGroundStation() {
+    if (!navigator.geolocation) {
+      setGsError("Geolocation not supported by this browser.");
+      return;
+    }
+    setGsLoading(true);
+    setGsError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGsLat(pos.coords.latitude);
+        setGsLon(pos.coords.longitude);
+        setGsAccuracy(Math.round(pos.coords.accuracy));
+        setGsLoading(false);
+      },
+      (err) => {
+        setGsError(`Location error: ${err.message}`);
+        setGsLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  // Auto-request on mount
+  useEffect(() => { locateGroundStation(); }, []);
+
+  // Distance rocket ↔ ground station
+  const distance =
+    gsLat && gsLon && lat && lon
+      ? haversineKm(gsLat, gsLon, lat, lon).toFixed(3)
+      : null;
+
+  // ── WebSocket ──────────────────────────────────────────────
   useEffect(() => {
     let ws: WebSocket;
     let reconnectTimer: ReturnType<typeof setTimeout>;
 
     function connect() {
       ws = new WebSocket("ws://localhost:8765");
-
       ws.onopen = () => setConnected(true);
-
       ws.onmessage = (event) => {
         try {
           const d = JSON.parse(event.data);
           const t = tickRef.current++;
-
           const point = {
             time: t,
-            alt:      d.alt       ?? 0,
-            vel:      d.vel       ?? 0,
-            ax:       d.ax        ?? 0,
-            ay:       d.ay        ?? 0,
-            az:       d.az        ?? 0,
-            lat:      d.lat       ?? 0,
-            lon:      d.lon       ?? 0,
-            fix:      d.fix       ?? 0,
+            alt:       d.alt       ?? 0,
+            vel:       d.vel       ?? 0,
+            ax:        d.ax        ?? 0,
+            ay:        d.ay        ?? 0,
+            az:        d.az        ?? 0,
+            lat:       d.lat       ?? 0,
+            lon:       d.lon       ?? 0,
+            fix:       d.fix       ?? 0,
             crossings: d.crossings ?? 0,
-            servo:    d.servo      ?? 0,
-            rssi:     d.rssi       ?? 0,
+            servo:     d.servo     ?? 0,
+            rssi:      d.rssi      ?? 0,
           };
-
-          // ── Log every packet for flight report ──
           logTelemetry(point);
-
           setCurrentAlt(point.alt);
           setCurrentVel(point.vel);
           setAltitudeData((prev) => [...prev.slice(-49), point.alt]);
           setVelocityData((prev) => [...prev.slice(-49), point.vel]);
           setLabels((prev) => [...prev.slice(-49), t]);
-
           if (d.lat && d.lon) { setLat(d.lat); setLon(d.lon); }
           if (d.rssi) setRssi(d.rssi);
-
           if (d.servo === 1) {
             setPayloads((p) => p.map((x) => x.id === 1 ? { ...x, status: "DEPLOYED" } : x));
           }
-
           setRawPacket({ pkt: t, ...point });
         } catch { /* skip bad packets */ }
       };
-
-      ws.onclose = () => {
-        setConnected(false);
-        reconnectTimer = setTimeout(connect, 3000);
-      };
-
+      ws.onclose = () => { setConnected(false); reconnectTimer = setTimeout(connect, 3000); };
       ws.onerror = () => ws.close();
     }
 
@@ -108,9 +147,7 @@ export default function TelemetryPage() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    setTimeout(() => setMapLoading(false), 1200);
-  }, []);
+  useEffect(() => { setTimeout(() => setMapLoading(false), 1200); }, []);
 
   const formatTime = (s: number) => {
     const h = Math.floor(s / 3600).toString().padStart(2, "0");
@@ -174,6 +211,73 @@ export default function TelemetryPage() {
         <span className="met-val" style={{ color: velColor }}>{currentVel} m/s</span>
       </motion.div>
 
+      {/* ── Ground Station Card ── */}
+      <motion.div
+        className="card"
+        style={{ marginTop: "32px" }}
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+          <h2 style={{ margin: 0 }}>🖥️ Ground Station</h2>
+          <button
+            onClick={locateGroundStation}
+            style={{
+              background: "rgba(0,217,255,0.1)",
+              border: "1px solid rgba(0,217,255,0.3)",
+              color: "#00d9ff",
+              padding: "6px 14px",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontSize: "0.75rem",
+              letterSpacing: "0.08em",
+            }}
+          >
+            {gsLoading ? "LOCATING..." : "⟳ REFRESH"}
+          </button>
+        </div>
+
+        {gsError && (
+          <p style={{ color: "#ff4d4d", fontSize: "0.8rem", marginTop: 12 }}>{gsError}</p>
+        )}
+
+        {gsLat && gsLon ? (
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+            gap: "12px",
+            marginTop: "16px",
+          }}>
+            {[
+              { label: "LATITUDE",   value: gsLat.toFixed(6) + "°" },
+              { label: "LONGITUDE",  value: gsLon.toFixed(6) + "°" },
+              { label: "ACCURACY",   value: gsAccuracy ? `±${gsAccuracy} m` : "—" },
+              { label: "ROCKET DIST", value: distance ? `${distance} km` : lat && lon ? "calculating..." : "no rocket GPS" },
+            ].map(({ label, value }) => (
+              <div key={label} style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: "8px",
+                padding: "12px 16px",
+              }}>
+                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>
+                  {label}
+                </div>
+                <div style={{ color: "#00d9ff", fontSize: "1.1rem", fontWeight: "bold", marginTop: "4px" }}>
+                  {value}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : !gsLoading && (
+          <p style={{ color: "rgba(255,255,255,0.3)", marginTop: 12, fontSize: "0.85rem" }}>
+            Allow location access in your browser to show ground station coordinates.
+          </p>
+        )}
+      </motion.div>
+
+      {/* ── Charts ── */}
       <div className="telemetryGrid">
         <div className="card">
           <h3>Altitude (m)</h3>
@@ -189,6 +293,7 @@ export default function TelemetryPage() {
         </div>
       </div>
 
+      {/* ── Map ── */}
       <div className="card" style={{ marginTop: "40px" }}>
         <h2>Live Tracking</h2>
         {mapLoading ? (
@@ -201,6 +306,7 @@ export default function TelemetryPage() {
         )}
       </div>
 
+      {/* ── Live Telemetry Feed ── */}
       <div className="card" style={{ marginTop: "40px", fontFamily: "monospace" }}>
         <h2>📡 Live Telemetry Feed</h2>
         {rawPacket ? (
@@ -217,8 +323,7 @@ export default function TelemetryPage() {
                 borderRadius: "8px",
                 padding: "12px 16px",
               }}>
-                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem",
-                  letterSpacing: "0.1em" }}>
+                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>
                   {label}
                 </div>
                 <div style={{
@@ -243,6 +348,7 @@ export default function TelemetryPage() {
         )}
       </div>
 
+      {/* ── Payloads ── */}
       <div className="telemetryGrid" style={{ marginTop: "40px" }}>
         {payloads.map((p) => (
           <div className="card" key={p.id}>
