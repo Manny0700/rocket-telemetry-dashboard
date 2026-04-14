@@ -13,7 +13,7 @@ import {
   Filler,
   Tooltip,
 } from "chart.js";
-import { store, ensureWebSocket, notifyListeners } from "@/lib/telemetryStore";
+import { store, ensureWebSocket, notifyListeners, startMetTimer } from "@/lib/telemetryStore";
 
 ChartJS.register(LineElement, PointElement, CategoryScale, LinearScale, Filler, Tooltip);
 
@@ -35,35 +35,31 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 export default function TelemetryPage() {
   const [, forceUpdate] = useState(0);
-  const [elapsed, setElapsed] = useState(0);
-  const [mapLoading, setMapLoading] = useState(true);
-  const [gsError, setGsError] = useState<string | null>(null);
+  const [gsError, setGsError]   = useState<string | null>(null);
   const [gsLoading, setGsLoading] = useState(false);
 
-  // Subscribe to store — re-render on any telemetry update
+  // Subscribe to store + start persistent timer + WebSocket
   useEffect(() => {
     const listener = () => forceUpdate((n) => n + 1);
     store.listeners.add(listener);
     ensureWebSocket();
-    return () => { store.listeners.delete(listener); };
-  }, []);
+    startMetTimer();
 
-  // MET timer
-  useEffect(() => {
-    const interval = setInterval(() => setElapsed((e) => e + 1), 1000);
-    return () => clearInterval(interval);
-  }, []);
+    // Mark map as initialized after first mount so it never shows spinner again
+    const mapTimeout = setTimeout(() => {
+      store.mapInitialized = true;
+      notifyListeners();
+    }, 1200);
 
-  useEffect(() => {
-    setTimeout(() => setMapLoading(false), 1200);
+    return () => {
+      store.listeners.delete(listener);
+      clearTimeout(mapTimeout);
+    };
   }, []);
 
   // Ground station geolocation
   function locateGroundStation() {
-    if (!navigator.geolocation) {
-      setGsError("Geolocation not supported.");
-      return;
-    }
+    if (!navigator.geolocation) { setGsError("Geolocation not supported."); return; }
     setGsLoading(true);
     setGsError(null);
     navigator.geolocation.getCurrentPosition(
@@ -74,10 +70,7 @@ export default function TelemetryPage() {
         notifyListeners();
         setGsLoading(false);
       },
-      (err) => {
-        setGsError(`Location error: ${err.message}`);
-        setGsLoading(false);
-      },
+      (err) => { setGsError(`Location error: ${err.message}`); setGsLoading(false); },
       { enableHighAccuracy: true, timeout: 10000 }
     );
   }
@@ -92,6 +85,7 @@ export default function TelemetryPage() {
     altitudeData, velocityData, labels,
     currentAlt, currentVel,
     rawPacket, payloads,
+    elapsed, mapInitialized,
   } = store;
 
   const distanceMi =
@@ -247,7 +241,7 @@ export default function TelemetryPage() {
             Ground Station
           </span>
         </div>
-        {mapLoading ? (
+        {!mapInitialized ? (
           <div className="map-loading">
             <div className="radar-spinner" />
             <p>Acquiring Signal...</p>

@@ -14,37 +14,50 @@ export interface TelemetryPoint {
 }
 
 export const store = {
-  altitudeData:  [] as number[],
-  velocityData:  [] as number[],
-  labels:        [] as number[],
-  currentAlt:    0,
-  currentVel:    0,
-  lat:           null as number | null,
-  lon:           null as number | null,
-  rssi:          null as number | null,
-  connected:     false,
-  rawPacket:     null as any,
-  payloads:      [
+  altitudeData:   [] as number[],
+  velocityData:   [] as number[],
+  labels:         [] as number[],
+  currentAlt:     0,
+  currentVel:     0,
+  lat:            null as number | null,
+  lon:            null as number | null,
+  rssi:           null as number | null,
+  connected:      false,
+  rawPacket:      null as any,
+  payloads:       [
     { id: 1, status: "ARMED" },
     { id: 2, status: "ARMED" },
     { id: 3, status: "ARMED" },
   ],
-  gsLat:         null as number | null,
-  gsLon:         null as number | null,
-  gsAccuracy:    null as number | null,
-  flightLog:     [] as TelemetryPoint[],
-  startTime:     null as number | null,
-  ws:            null as any,
-  tickRef:       0,
-  listeners:     new Set<() => void>(),
+  gsLat:          null as number | null,
+  gsLon:          null as number | null,
+  gsAccuracy:     null as number | null,
+  flightLog:      [] as TelemetryPoint[],
+  startTime:      null as number | null,
+  ws:             null as any,
+  tickRef:        0,
+  listeners:      new Set<() => void>(),
+
+  // Persistent timer — survives navigation
+  elapsed:        0,
+  metInterval:    null as any,
+  mapInitialized: false,
 };
+
+export function startMetTimer() {
+  if (store.metInterval) return; // already running
+  store.metInterval = setInterval(() => {
+    store.elapsed += 1;
+    notifyListeners();
+  }, 1000);
+}
 
 export function logTelemetry(data: TelemetryPoint) {
   if (store.startTime === null) store.startTime = Date.now();
   store.flightLog.push({ ...data, time: (Date.now() - store.startTime) / 1000 });
 }
 
-export function getFlightLog() { return store.flightLog; }
+export function getFlightLog()  { return store.flightLog; }
 export function clearFlightLog() { store.flightLog = []; store.startTime = null; }
 
 export function notifyListeners() {
@@ -88,8 +101,8 @@ export function ensureWebSocket() {
 
         logTelemetry(point);
 
-        store.currentAlt  = point.alt;
-        store.currentVel  = point.vel;
+        store.currentAlt   = point.alt;
+        store.currentVel   = point.vel;
         store.altitudeData = [...store.altitudeData.slice(-49), mToFt(point.alt)];
         store.velocityData = [...store.velocityData.slice(-49), msToFts(point.vel)];
         store.labels       = [...store.labels.slice(-49), t];
