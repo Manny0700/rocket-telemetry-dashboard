@@ -1,4 +1,3 @@
-// Module-level singleton — survives page navigation
 export interface TelemetryPoint {
   time: number;
   alt: number;
@@ -15,12 +14,9 @@ export interface TelemetryPoint {
 }
 
 export const store = {
-  // Chart history
   altitudeData:  [] as number[],
   velocityData:  [] as number[],
   labels:        [] as number[],
-
-  // Latest values
   currentAlt:    0,
   currentVel:    0,
   lat:           null as number | null,
@@ -33,18 +29,12 @@ export const store = {
     { id: 2, status: "ARMED" },
     { id: 3, status: "ARMED" },
   ],
-
-  // Ground station
   gsLat:         null as number | null,
   gsLon:         null as number | null,
   gsAccuracy:    null as number | null,
-
-  // Flight log
   flightLog:     [] as TelemetryPoint[],
   startTime:     null as number | null,
-
-  // WebSocket singleton
-  ws:            null as WebSocket | null,
+  ws:            null as any,
   tickRef:       0,
   listeners:     new Set<() => void>(),
 };
@@ -61,12 +51,12 @@ export function notifyListeners() {
   store.listeners.forEach((fn) => fn());
 }
 
-// Start the WebSocket once — keeps running even when component unmounts
 export function ensureWebSocket() {
-  if (store.ws && store.ws.readyState <= 1) return; // already open or connecting
+  if (typeof window === "undefined") return;
+  if (store.ws && (store.ws.readyState === 0 || store.ws.readyState === 1)) return;
 
   function connect() {
-    const ws = new WebSocket("ws://localhost:8765");
+    const ws = new window.WebSocket("ws://localhost:8765");
     store.ws = ws;
 
     ws.onopen = () => {
@@ -74,32 +64,38 @@ export function ensureWebSocket() {
       notifyListeners();
     };
 
-    ws.onmessage = (event) => {
+    ws.onmessage = (event: MessageEvent) => {
       try {
         const d = JSON.parse(event.data);
         const t = store.tickRef++;
-
-        const mToFt  = (m: number) => m * 3.28084;
+        const mToFt   = (m: number) => m * 3.28084;
         const msToFts = (ms: number) => ms * 3.28084;
 
         const point: TelemetryPoint = {
-          time: t, alt: d.alt ?? 0, vel: d.vel ?? 0,
-          ax: d.ax ?? 0, ay: d.ay ?? 0, az: d.az ?? 0,
-          lat: d.lat ?? 0, lon: d.lon ?? 0,
-          fix: d.fix ?? 0, crossings: d.crossings ?? 0,
-          servo: d.servo ?? 0, rssi: d.rssi ?? 0,
+          time:      t,
+          alt:       d.alt       ?? 0,
+          vel:       d.vel       ?? 0,
+          ax:        d.ax        ?? 0,
+          ay:        d.ay        ?? 0,
+          az:        d.az        ?? 0,
+          lat:       d.lat       ?? 0,
+          lon:       d.lon       ?? 0,
+          fix:       d.fix       ?? 0,
+          crossings: d.crossings ?? 0,
+          servo:     d.servo     ?? 0,
+          rssi:      d.rssi      ?? 0,
         };
 
         logTelemetry(point);
 
-        store.currentAlt = point.alt;
-        store.currentVel = point.vel;
+        store.currentAlt  = point.alt;
+        store.currentVel  = point.vel;
         store.altitudeData = [...store.altitudeData.slice(-49), mToFt(point.alt)];
         store.velocityData = [...store.velocityData.slice(-49), msToFts(point.vel)];
         store.labels       = [...store.labels.slice(-49), t];
 
         if (d.lat && d.lon) { store.lat = d.lat; store.lon = d.lon; }
-        if (d.rssi) store.rssi = d.rssi;
+        if (d.rssi)         { store.rssi = d.rssi; }
         if (d.servo === 1) {
           store.payloads = store.payloads.map((x) =>
             x.id === 1 ? { ...x, status: "DEPLOYED" } : x
