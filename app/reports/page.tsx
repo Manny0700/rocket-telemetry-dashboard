@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { getFlightLog, clearFlightLog } from "../../lib/flightLogger";
+import { store, clearFlightLog } from "../../lib/telemetryStore";
 
-const mToFt  = (m: number)  => m  * 3.28084;
+const mToFt   = (m: number)  => m  * 3.28084;
 const msToFts = (ms: number) => ms * 3.28084;
 const kmToMi  = (km: number) => km * 0.621371;
 
@@ -26,7 +26,7 @@ export default function ReportsPage() {
   const [report, setReport] = useState<any>(null);
 
   function generateReport() {
-    const log = getFlightLog();
+    const log = store.flightLog;
     if (log.length === 0) {
       alert("No flight data recorded yet. Make sure the ESP32 is connected and transmitting on the Telemetry page first.");
       return;
@@ -34,27 +34,31 @@ export default function ReportsPage() {
 
     const maxAltitudeFt  = mToFt(Math.max(...log.map((d) => d.alt)));
     const maxVelocityFts = msToFts(Math.max(...log.map((d) => d.vel)));
-    const avgRssi        = Math.round(log.map((d) => d.rssi).filter(Boolean).reduce((a, b) => a + b, 0) / log.filter((d) => d.rssi).length);
-    const flightTime     = log[log.length - 1].time.toFixed(1);
-    const totalPackets   = log.length;
-    const peakAccel      = Math.max(...log.map((d) => Math.sqrt(d.ax ** 2 + d.ay ** 2 + d.az ** 2)));
-    const apogeePoint    = log.reduce((a, b) => (a.alt > b.alt ? a : b));
-    const crossings      = log[log.length - 1].crossings;
-    const servoEvent     = log.find((d) => d.servo === 1);
-    const servoTime      = servoEvent ? servoEvent.time.toFixed(1) : null;
-    const fix3dCount     = log.filter((d) => d.fix === 3).length;
-    const gpsCoverage    = Math.round((fix3dCount / totalPackets) * 100);
+    const avgRssi        = Math.round(
+      log.filter((d) => d.rssi).reduce((a, b) => a + b.rssi, 0) /
+      log.filter((d) => d.rssi).length
+    );
+    const flightTime   = log[log.length - 1].time.toFixed(1);
+    const totalPackets = log.length;
+    const peakAccel    = Math.max(...log.map((d) => Math.sqrt(d.ax ** 2 + d.ay ** 2 + d.az ** 2)));
+    const apogeePoint  = log.reduce((a, b) => (a.alt > b.alt ? a : b));
+    const crossings    = log[log.length - 1].crossings;
+    const servoEvent   = log.find((d) => d.servo === 1);
+    const servoTime    = servoEvent ? servoEvent.time.toFixed(1) : null;
+    const fix3dCount   = log.filter((d) => d.fix === 3).length;
+    const gpsCoverage  = Math.round((fix3dCount / totalPackets) * 100);
 
-    // Distance from first to last GPS point in miles
+    // Downrange distance
     const first = log.find((d) => d.lat && d.lon);
     const last  = [...log].reverse().find((d) => d.lat && d.lon);
-    let rangeKm: number | null = null;
+    let rangeMi: string | null = null;
     if (first && last) {
-      const R = 6371;
+      const R    = 6371;
       const dLat = ((last.lat - first.lat) * Math.PI) / 180;
       const dLon = ((last.lon - first.lon) * Math.PI) / 180;
-      const a = Math.sin(dLat/2)**2 + Math.cos(first.lat*Math.PI/180)*Math.cos(last.lat*Math.PI/180)*Math.sin(dLon/2)**2;
-      rangeKm = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      const a    = Math.sin(dLat/2)**2 +
+        Math.cos(first.lat*Math.PI/180) * Math.cos(last.lat*Math.PI/180) * Math.sin(dLon/2)**2;
+      rangeMi = kmToMi(6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))).toFixed(3);
     }
 
     setReport({
@@ -67,12 +71,12 @@ export default function ReportsPage() {
       crossings,
       servoTime,
       gpsCoverage,
-      rangeMi: rangeKm !== null ? kmToMi(rangeKm).toFixed(3) : null,
+      rangeMi,
       apogee: {
-        lat:  apogeePoint.lat,
-        lon:  apogeePoint.lon,
+        lat:   apogeePoint.lat,
+        lon:   apogeePoint.lon,
         altFt: mToFt(apogeePoint.alt),
-        time: apogeePoint.time.toFixed(1),
+        time:  apogeePoint.time.toFixed(1),
       },
     });
   }
@@ -100,7 +104,8 @@ export default function ReportsPage() {
               initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
               🖨️ Export PDF
             </motion.button>
-            <motion.button onClick={() => { clearFlightLog(); setReport(null); }}
+            <motion.button
+              onClick={() => { clearFlightLog(); setReport(null); }}
               className="report-btn-outline"
               whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}
               initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
@@ -139,7 +144,9 @@ export default function ReportsPage() {
               </div>
               <div className="report-stat-card">
                 <p className="stat-label">Flight Time</p>
-                <h2 className="stat-value">{report.flightTime} <span style={{ fontSize: "16px" }}>sec</span></h2>
+                <h2 className="stat-value">
+                  {report.flightTime} <span style={{ fontSize: "16px" }}>sec</span>
+                </h2>
               </div>
             </div>
 
@@ -151,11 +158,15 @@ export default function ReportsPage() {
               </div>
               <div className="report-stat-card">
                 <p className="stat-label">Avg RSSI</p>
-                <h2 className="stat-value">{report.avgRssi} <span style={{ fontSize: "16px" }}>dBm</span></h2>
+                <h2 className="stat-value">
+                  {report.avgRssi} <span style={{ fontSize: "16px" }}>dBm</span>
+                </h2>
               </div>
               <div className="report-stat-card">
                 <p className="stat-label">GPS 3D Lock</p>
-                <h2 className="stat-value">{report.gpsCoverage}<span style={{ fontSize: "16px" }}>%</span></h2>
+                <h2 className="stat-value">
+                  {report.gpsCoverage}<span style={{ fontSize: "16px" }}>%</span>
+                </h2>
               </div>
             </div>
 
@@ -168,7 +179,9 @@ export default function ReportsPage() {
                 <tr><td>Time</td><td>T+{report.apogee.time}s</td></tr>
                 <tr><td>Latitude</td><td>{report.apogee.lat.toFixed(6)}°</td></tr>
                 <tr><td>Longitude</td><td>{report.apogee.lon.toFixed(6)}°</td></tr>
-                {report.rangeMi && <tr><td>Downrange Distance</td><td>{report.rangeMi} mi</td></tr>}
+                {report.rangeMi && (
+                  <tr><td>Downrange Distance</td><td>{report.rangeMi} mi</td></tr>
+                )}
               </tbody>
             </table>
 
@@ -187,7 +200,10 @@ export default function ReportsPage() {
                     </span>
                   </td>
                 </tr>
-                <tr><td>Zero Crossings</td><td colSpan={2}>{report.crossings}</td></tr>
+                <tr>
+                  <td>Zero Crossings</td>
+                  <td colSpan={2}>{report.crossings}</td>
+                </tr>
               </tbody>
             </table>
 
