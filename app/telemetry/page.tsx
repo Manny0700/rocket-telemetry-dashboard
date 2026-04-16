@@ -35,17 +35,15 @@ function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
 
 export default function TelemetryPage() {
   const [, forceUpdate] = useState(0);
-  const [gsError, setGsError]   = useState<string | null>(null);
+  const [gsError, setGsError]     = useState<string | null>(null);
   const [gsLoading, setGsLoading] = useState(false);
 
-  // Subscribe to store + start persistent timer + WebSocket
   useEffect(() => {
     const listener = () => forceUpdate((n) => n + 1);
     store.listeners.add(listener);
     ensureWebSocket();
     startMetTimer();
 
-    // Mark map as initialized after first mount so it never shows spinner again
     const mapTimeout = setTimeout(() => {
       store.mapInitialized = true;
       notifyListeners();
@@ -57,7 +55,6 @@ export default function TelemetryPage() {
     };
   }, []);
 
-  // Ground station geolocation
   function locateGroundStation() {
     if (!navigator.geolocation) { setGsError("Geolocation not supported."); return; }
     setGsLoading(true);
@@ -92,6 +89,10 @@ export default function TelemetryPage() {
     gsLat && gsLon && lat && lon
       ? kmToMi(haversineKm(gsLat, gsLon, lat, lon)).toFixed(3)
       : null;
+
+  const googleMapsUrl = gsLat && gsLon
+    ? `https://www.google.com/maps?q=${gsLat},${gsLon}&z=16&output=embed`
+    : null;
 
   const currentAltFt  = mToFt(currentAlt);
   const currentVelFts = msToFts(currentVel);
@@ -161,7 +162,7 @@ export default function TelemetryPage() {
         <span className="met-val" style={{ color: velColor }}>{currentVelFts.toFixed(1)} ft/s</span>
       </motion.div>
 
-      {/* ── Ground Station ── */}
+      {/* ── Ground Station Card ── */}
       <motion.div className="card" style={{ marginTop: "32px" }}
         initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
@@ -180,27 +181,43 @@ export default function TelemetryPage() {
         )}
 
         {gsLat && gsLon ? (
-          <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-            gap: "12px", marginTop: "16px",
-          }}>
-            {[
-              { label: "LATITUDE",    value: gsLat.toFixed(6) + "°" },
-              { label: "LONGITUDE",   value: gsLon.toFixed(6) + "°" },
-              { label: "ACCURACY",    value: gsAccuracy ? `±${gsAccuracy} ft` : "—" },
-              { label: "ROCKET DIST", value: distanceMi ? `${distanceMi} mi` : lat && lon ? "calculating..." : "no rocket GPS" },
-            ].map(({ label, value }) => (
-              <div key={label} style={{
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                borderRadius: "8px", padding: "12px 16px",
-              }}>
-                <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>{label}</div>
-                <div style={{ color: "#00d9ff", fontSize: "1.1rem", fontWeight: "bold", marginTop: "4px" }}>{value}</div>
-              </div>
-            ))}
-          </div>
+          <>
+            {/* Stats */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+              gap: "12px", marginTop: "16px",
+            }}>
+              {[
+                { label: "LATITUDE",    value: gsLat.toFixed(6) + "°" },
+                { label: "LONGITUDE",   value: gsLon.toFixed(6) + "°" },
+                { label: "ACCURACY",    value: gsAccuracy ? `±${gsAccuracy} ft` : "—" },
+                { label: "ROCKET DIST", value: distanceMi ? `${distanceMi} mi` : lat && lon ? "calculating..." : "no rocket GPS" },
+              ].map(({ label, value }) => (
+                <div key={label} style={{
+                  background: "rgba(255,255,255,0.04)",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: "8px", padding: "12px 16px",
+                }}>
+                  <div style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.7rem", letterSpacing: "0.1em" }}>{label}</div>
+                  <div style={{ color: "#00d9ff", fontSize: "1.1rem", fontWeight: "bold", marginTop: "4px" }}>{value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Google Maps iframe */}
+            <div style={{ marginTop: "16px", borderRadius: "10px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
+              <iframe
+                src={googleMapsUrl!}
+                width="100%"
+                height="320"
+                style={{ border: 0, display: "block" }}
+                allowFullScreen
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            </div>
+          </>
         ) : !gsLoading && (
           <p style={{ color: "rgba(255,255,255,0.3)", marginTop: 12, fontSize: "0.85rem" }}>
             Allow location access in your browser to show ground station coordinates.
@@ -228,26 +245,16 @@ export default function TelemetryPage() {
         </div>
       </div>
 
-      {/* ── Combined Tracking Map ── */}
+      {/* ── Rocket Live Tracking Map ── */}
       <div className="card" style={{ marginTop: "40px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12, flexWrap: "wrap" }}>
-          <h2 style={{ margin: 0 }}>Live Tracking</h2>
-          <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "rgba(255,255,255,0.6)" }}>
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#00d9ff", display: "inline-block" }} />
-            Rocket
-          </span>
-          <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75rem", color: "rgba(255,255,255,0.6)" }}>
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#ff8800", display: "inline-block" }} />
-            Ground Station
-          </span>
-        </div>
+        <h2>Live Tracking</h2>
         {!mapInitialized ? (
           <div className="map-loading">
             <div className="radar-spinner" />
             <p>Acquiring Signal...</p>
           </div>
         ) : (
-          <MapComponent lat={lat} lon={lon} gsLat={gsLat} gsLon={gsLon} />
+          <MapComponent lat={lat} lon={lon} />
         )}
       </div>
 
