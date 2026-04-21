@@ -1,21 +1,15 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
 
 const videos = [
   {
     id: 1,
-    title: "Rocket Launch Test",
-    src: "/videos/launch1.mp4",
+    title: "Launch Test",
+    embedUrl: "https://drive.google.com/file/d/14FfvHMgrBPrGcw1YAjPjhxhqdsd7_taX/preview",
     description: "Full-scale static fire and launch sequence test.",
   },
-  {
-    id: 2,
-    title: "Payload Deployment Demonstration",
-    src: "/videos/payload.mp4",
-    description: "Separation event and payload deployment at apogee.",
-  },
+  // Add more videos here as you get the links
 ];
 
 const reports = [
@@ -24,17 +18,15 @@ const reports = [
 ];
 
 const timeline = [
-  { phase: "T-0:00", label: "Engine Ignition", detail: "Main engine startup sequence initiated." },
-  { phase: "T+0:02", label: "Liftoff", detail: "Vehicle clears the launch pad." },
-  { phase: "T+0:45", label: "Max-Q", detail: "Maximum aerodynamic pressure reached." },
-  { phase: "T+2:10", label: "MECO", detail: "Main engine cutoff. Coast phase begins." },
-  { phase: "T+4:30", label: "Apogee", detail: "Peak altitude reached. Payload deployment." },
-  { phase: "T+6:00", label: "Recovery", detail: "Drogue and main chute deployment." },
+  { phase: "T-0:00", label: "Engine Ignition",  detail: "Main engine startup sequence initiated." },
+  { phase: "T+0:02", label: "Liftoff",           detail: "Vehicle clears the launch pad." },
+  { phase: "T+0:45", label: "Max-Q",             detail: "Maximum aerodynamic pressure reached." },
+  { phase: "T+2:10", label: "MECO",              detail: "Main engine cutoff. Coast phase begins." },
+  { phase: "T+4:30", label: "Apogee",            detail: "Peak altitude reached. Payload deployment." },
+  { phase: "T+6:00", label: "Recovery",          detail: "Drogue and main chute deployment." },
 ];
 
 export default function DemonstrationsPage() {
-  const [activeVideo, setActiveVideo] = useState<number | null>(null);
-
   return (
     <div style={{ padding: "40px", maxWidth: "1100px", margin: "0 auto" }}>
 
@@ -42,6 +34,7 @@ export default function DemonstrationsPage() {
         Mission Demonstrations
       </motion.h1>
 
+      {/* ── Mission Timeline ── */}
       <motion.h2
         style={{ marginTop: "40px" }}
         initial={{ opacity: 0 }}
@@ -70,6 +63,7 @@ export default function DemonstrationsPage() {
         ))}
       </div>
 
+      {/* ── Launch Videos ── */}
       <motion.h2
         style={{ marginTop: "50px" }}
         initial={{ opacity: 0 }}
@@ -79,37 +73,38 @@ export default function DemonstrationsPage() {
         Launch Videos
       </motion.h2>
 
-      <div className="video-grid">
+      <div style={{ display: "flex", flexDirection: "column", gap: "32px", marginTop: "16px" }}>
         {videos.map((v, i) => (
           <motion.div
             key={v.id}
-            className="video-card"
+            className="card"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 * i + 0.3 }}
           >
-            <div
-              className="video-thumb"
-              onClick={() => setActiveVideo(activeVideo === v.id ? null : v.id)}
-            >
-              {activeVideo === v.id ? (
-                <video width="100%" controls autoPlay style={{ display: "block" }}>
-                  <source src={v.src} type="video/mp4" />
-                </video>
-              ) : (
-                <div className="video-thumb-inner">
-                  <div className="play-btn">▶</div>
-                </div>
-              )}
+            <div style={{
+              borderRadius: "10px",
+              overflow: "hidden",
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "#000",
+            }}>
+              <iframe
+                src={v.embedUrl}
+                width="100%"
+                height="480"
+                allow="autoplay"
+                style={{ border: 0, display: "block" }}
+              />
             </div>
-            <div className="video-info">
-              <h3>{v.title}</h3>
-              <p>{v.description}</p>
+            <div style={{ padding: "16px 4px 4px" }}>
+              <h3 style={{ margin: 0 }}>{v.title}</h3>
+              <p style={{ color: "var(--muted)", marginTop: 6 }}>{v.description}</p>
             </div>
           </motion.div>
         ))}
       </div>
 
+      {/* ── Flight Reports ── */}
       <motion.h2
         style={{ marginTop: "50px" }}
         initial={{ opacity: 0 }}
