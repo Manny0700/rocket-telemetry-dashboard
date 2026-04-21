@@ -8,59 +8,51 @@ const buildVideos = [
     title: "Assembly",
     embedUrl: "https://drive.google.com/file/d/1QrJV04zylriLKeTsfrqGVLkdRgvUx6mN/preview",
     phase: "ASSEMBLY",
-    date: "",
   },
   {
     id: 2,
     title: "Setup 1",
     embedUrl: "https://drive.google.com/file/d/1N99V79krbwlzx4wBBGxJNVxMVuSC4OlM/preview",
     phase: "ASSEMBLY",
-    date: "",
   },
   {
     id: 3,
     title: "Setup 2",
     embedUrl: "https://drive.google.com/file/d/1ddJo0reE5NVEiVFUXFGzN-2F3T98YZWb/preview",
     phase: "ASSEMBLY",
-    date: "",
   },
   {
     id: 4,
     title: "Ground Deployment Test",
     embedUrl: "https://drive.google.com/file/d/1lRs23j1rRoYpUS9wC9Z467SavLzqtyAP/preview",
     phase: "TESTING",
-    date: "",
   },
   {
     id: 5,
     title: "Nosecone Deployment 1",
     embedUrl: "https://drive.google.com/file/d/1NzQHgSxzCucxVJRNDDTZTcBAQmKLufRJ/preview",
     phase: "TESTING",
-    date: "",
   },
   {
     id: 6,
     title: "Ejection Charge Test",
     embedUrl: "https://drive.google.com/file/d/1HpWJpU8t6YGw3N1A3tQZyD0Qs_-StCcR/preview",
     phase: "TESTING",
-    date: "",
   },
   {
     id: 7,
     title: "Nosecone Deployment 2",
     embedUrl: "https://drive.google.com/file/d/1ri-K1kwFMqEshjrvJ79dk19-M4iK6JzQ/preview",
     phase: "TESTING",
-    date: "",
   },
 ];
 
 const buildReports = [
-  { id: 1, title: "M1", href: "/reports/M1.pdf", date: "", status: "COMPLETE" },
-  { id: 2, title: "M2", href: "/reports/M2.pdf", date: "", status: "COMPLETE" },
-  { id: 3, title: "M3", href: "/reports/M3.pdf", date: "", status: "COMPLETE" },
-  { id: 4, title: "M4", href: "/reports/M4.pdf", date: "", status: "COMPLETE" },
-  { id: 5, title: "M5", href: "/reports/M5.pdf", date: "", status: "COMPLETE" },
-  { id: 6, title: "M6", href: "/reports/M6.pdf", date: "", status: "COMPLETE" },
+  { id: 2, title: "M2", href: "/reports/M2.pdf", status: "COMPLETE" },
+  { id: 3, title: "M3", href: "/reports/M3.pdf", status: "COMPLETE" },
+  { id: 4, title: "M4", href: "/reports/M4.pdf", status: "COMPLETE" },
+  { id: 5, title: "M5", href: "/reports/M5.pdf", status: "COMPLETE" },
+  { id: 6, title: "M6", href: "/reports/M6.pdf", status: "COMPLETE" },
 ];
 
 const buildPhases = [
@@ -96,12 +88,46 @@ export default function BuildPage() {
         initial concept through pre-flight readiness.
       </motion.p>
 
+      {/* ── Build Reports (TOP) ── */}
+      <motion.h2
+        style={{ marginTop: "40px" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2 }}
+      >
+        Build Reports
+      </motion.h2>
+
+      <div className="report-cards">
+        {buildReports.map((r, i) => (
+          <motion.a
+            key={r.id}
+            href={r.href}
+            target="_blank"
+            className="report-card-link"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 * i + 0.2 }}
+          >
+            <div className="report-icon">📄</div>
+            <div className="report-link-info">
+              <h3>{r.title}</h3>
+            </div>
+            <span className="status-badge badge-deployed">
+              <span className="status-dot dot-green" />
+              {r.status}
+            </span>
+            <span className="report-download-arrow">↓</span>
+          </motion.a>
+        ))}
+      </div>
+
       {/* ── Build Phases ── */}
       <motion.h2
         style={{ marginTop: "48px" }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
+        transition={{ delay: 0.25 }}
       >
         Build Phases
       </motion.h2>
@@ -113,7 +139,7 @@ export default function BuildPage() {
             className="timeline-item"
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.07 * i + 0.2 }}
+            transition={{ delay: 0.07 * i + 0.25 }}
           >
             <div className="timeline-dot" />
             <div className="timeline-content">
@@ -125,14 +151,14 @@ export default function BuildPage() {
         ))}
       </div>
 
-      {/* ── Build Videos ── */}
+      {/* ── Build Process Videos ── */}
       <motion.h2
         style={{ marginTop: "56px" }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.3 }}
       >
-        Build Videos
+        Build Process Videos
       </motion.h2>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "32px", marginTop: "16px" }}>
@@ -170,41 +196,6 @@ export default function BuildPage() {
               <h3 style={{ margin: 0 }}>{v.title}</h3>
             </div>
           </motion.div>
-        ))}
-      </div>
-
-      {/* ── Build Reports ── */}
-      <motion.h2
-        style={{ marginTop: "56px" }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-      >
-        Build Reports
-      </motion.h2>
-
-      <div className="report-cards">
-        {buildReports.map((r, i) => (
-          <motion.a
-            key={r.id}
-            href={r.href}
-            target="_blank"
-            className="report-card-link"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 * i + 0.4 }}
-          >
-            <div className="report-icon">📄</div>
-            <div className="report-link-info">
-              <h3>{r.title}</h3>
-              {r.date && <p>{r.date}</p>}
-            </div>
-            <span className="status-badge badge-deployed">
-              <span className="status-dot dot-green" />
-              {r.status}
-            </span>
-            <span className="report-download-arrow">↓</span>
-          </motion.a>
         ))}
       </div>
 
