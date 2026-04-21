@@ -1,40 +1,56 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
 
 const buildVideos = [
   {
     id: 1,
-    title: "Airframe Assembly",
-    src: "/videos/build_airframe.mp4",
-    description: "Full assembly of the main airframe tube, fins, and motor mount.",
-    date: "2024-09-10",
+    title: "Assembly",
+    embedUrl: "https://drive.google.com/file/d/1QrJV04zylriLKeTsfrqGVLkdRgvUx6mN/preview",
     phase: "ASSEMBLY",
+    date: "",
   },
   {
     id: 2,
-    title: "Avionics Bay Integration",
-    src: "/videos/build_avionics.mp4",
-    description: "Wiring and integration of flight computers, altimeters, and recovery electronics.",
-    date: "2024-10-04",
-    phase: "AVIONICS",
+    title: "Setup 1",
+    embedUrl: "https://drive.google.com/file/d/1N99V79krbwlzx4wBBGxJNVxMVuSC4OlM/preview",
+    phase: "ASSEMBLY",
+    date: "",
   },
   {
     id: 3,
-    title: "Recovery System Testing",
-    src: "/videos/build_recovery.mp4",
-    description: "Ejection charge tests and parachute deployment validation.",
-    date: "2024-11-18",
-    phase: "TESTING",
+    title: "Setup 2",
+    embedUrl: "https://drive.google.com/file/d/1ddJo0reE5NVEiVFUXFGzN-2F3T98YZWb/preview",
+    phase: "ASSEMBLY",
+    date: "",
   },
   {
     id: 4,
-    title: "Static Fire Test",
-    src: "/videos/build_staticfire.mp4",
-    description: "Motor static fire test on the ground support structure.",
-    date: "2024-12-05",
+    title: "Ground Deployment Test",
+    embedUrl: "https://drive.google.com/file/d/1lRs23j1rRoYpUS9wC9Z467SavLzqtyAP/preview",
     phase: "TESTING",
+    date: "",
+  },
+  {
+    id: 5,
+    title: "Nosecone Deployment 1",
+    embedUrl: "https://drive.google.com/file/d/1NzQHgSxzCucxVJRNDDTZTcBAQmKLufRJ/preview",
+    phase: "TESTING",
+    date: "",
+  },
+  {
+    id: 6,
+    title: "Ejection Charge Test",
+    embedUrl: "https://drive.google.com/file/d/1HpWJpU8t6YGw3N1A3tQZyD0Qs_-StCcR/preview",
+    phase: "TESTING",
+    date: "",
+  },
+  {
+    id: 7,
+    title: "Nosecone Deployment 2",
+    embedUrl: "https://drive.google.com/file/d/1ri-K1kwFMqEshjrvJ79dk19-M4iK6JzQ/preview",
+    phase: "TESTING",
+    date: "",
   },
 ];
 
@@ -48,26 +64,25 @@ const buildReports = [
 ];
 
 const buildPhases = [
-  { phase: "PHASE 1", label: "Concept & Design", detail: "Initial concept, CAD modelling, and PDR submission." },
-  { phase: "PHASE 2", label: "Procurement", detail: "Component sourcing, motor selection, and materials ordering." },
-  { phase: "PHASE 3", label: "Assembly", detail: "Airframe construction, fin alignment, and nose cone integration." },
-  { phase: "PHASE 4", label: "Avionics", detail: "Flight computer wiring, altimeter calibration, and bay integration." },
-  { phase: "PHASE 5", label: "Ground Testing", detail: "Ejection charge tests, static fire, and continuity checks." },
-  { phase: "PHASE 6", label: "Flight Ready", detail: "FRR sign-off, transport, and pad preparation." },
+  { phase: "PHASE 1", label: "Concept & Design",  detail: "Initial concept, CAD modelling, and PDR submission." },
+  { phase: "PHASE 2", label: "Procurement",        detail: "Component sourcing, motor selection, and materials ordering." },
+  { phase: "PHASE 3", label: "Assembly",           detail: "Airframe construction, fin alignment, and nose cone integration." },
+  { phase: "PHASE 4", label: "Avionics",           detail: "Flight computer wiring, altimeter calibration, and bay integration." },
+  { phase: "PHASE 5", label: "Ground Testing",     detail: "Ejection charge tests, static fire, and continuity checks." },
+  { phase: "PHASE 6", label: "Flight Ready",       detail: "FRR sign-off, transport, and pad preparation." },
 ];
 
 const phaseBadgeColor: Record<string, string> = {
   ASSEMBLY: "#2563eb",
   AVIONICS: "#7c3aed",
-  TESTING: "#b45309",
+  TESTING:  "#b45309",
 };
 
 export default function BuildPage() {
-  const [activeVideo, setActiveVideo] = useState<number | null>(null);
-
   return (
     <div style={{ padding: "40px", maxWidth: "1100px", margin: "0 auto" }}>
 
+      {/* ── Header ── */}
       <motion.h1 initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }}>
         Build Process
       </motion.h1>
@@ -81,6 +96,7 @@ export default function BuildPage() {
         initial concept through pre-flight readiness.
       </motion.p>
 
+      {/* ── Build Phases ── */}
       <motion.h2
         style={{ marginTop: "48px" }}
         initial={{ opacity: 0 }}
@@ -109,6 +125,7 @@ export default function BuildPage() {
         ))}
       </div>
 
+      {/* ── Build Videos ── */}
       <motion.h2
         style={{ marginTop: "56px" }}
         initial={{ opacity: 0 }}
@@ -118,54 +135,45 @@ export default function BuildPage() {
         Build Videos
       </motion.h2>
 
-      <div className="video-grid">
+      <div style={{ display: "flex", flexDirection: "column", gap: "32px", marginTop: "16px" }}>
         {buildVideos.map((v, i) => (
           <motion.div
             key={v.id}
-            className="video-card"
+            className="card"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.12 * i + 0.3 }}
+            transition={{ delay: 0.1 * i + 0.3 }}
           >
-            <div
-              className="video-thumb"
-              onClick={() => setActiveVideo(activeVideo === v.id ? null : v.id)}
-            >
-              {activeVideo === v.id ? (
-                <video width="100%" controls autoPlay style={{ display: "block" }}>
-                  <source src={v.src} type="video/mp4" />
-                  Your browser does not support video playback.
-                </video>
-              ) : (
-                <div className="video-thumb-inner">
-                  <div className="play-btn">▶</div>
-                </div>
-              )}
+            <div style={{
+              borderRadius: "10px",
+              overflow: "hidden",
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "#000",
+            }}>
+              <iframe
+                src={v.embedUrl}
+                width="100%"
+                height="480"
+                allow="autoplay"
+                style={{ border: 0, display: "block" }}
+              />
             </div>
-            <div className="video-info">
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span
-                  style={{
-                    fontSize: "10px",
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    padding: "2px 7px",
-                    borderRadius: 4,
-                    background: phaseBadgeColor[v.phase] ?? "#334155",
-                    color: "#fff",
-                  }}
-                >
-                  {v.phase}
-                </span>
-                <span style={{ fontSize: "11px", color: "var(--muted)" }}>{v.date}</span>
-              </div>
-              <h3>{v.title}</h3>
-              <p>{v.description}</p>
+            <div style={{ padding: "14px 4px 4px", display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{
+                fontSize: "10px", fontWeight: 700, letterSpacing: "0.08em",
+                padding: "2px 8px", borderRadius: 4,
+                background: phaseBadgeColor[v.phase] ?? "#334155",
+                color: "#fff",
+              }}>
+                {v.phase}
+              </span>
+              <h3 style={{ margin: 0 }}>{v.title}</h3>
             </div>
           </motion.div>
         ))}
       </div>
 
+      {/* ── Build Reports ── */}
       <motion.h2
         style={{ marginTop: "56px" }}
         initial={{ opacity: 0 }}
