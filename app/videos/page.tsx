@@ -9,12 +9,6 @@ const videos = [
     embedUrl: "https://drive.google.com/file/d/14FfvHMgrBPrGcw1YAjPjhxhqdsd7_taX/preview",
     description: "Full-scale static fire and launch sequence test.",
   },
-  // Add more videos here as you get the links
-];
-
-const reports = [
-  { id: 1, title: "Flight Test Report 1", href: "/reports/flight1.pdf", date: "2025-01-15" },
-  { id: 2, title: "Flight Test Report 2", href: "/reports/flight2.pdf", date: "2025-03-02" },
 ];
 
 const timeline = [
@@ -34,7 +28,6 @@ export default function DemonstrationsPage() {
         Mission Demonstrations
       </motion.h1>
 
-      {/* ── Mission Timeline ── */}
       <motion.h2
         style={{ marginTop: "40px" }}
         initial={{ opacity: 0 }}
@@ -63,7 +56,6 @@ export default function DemonstrationsPage() {
         ))}
       </div>
 
-      {/* ── Launch Videos ── */}
       <motion.h2
         style={{ marginTop: "50px" }}
         initial={{ opacity: 0 }}
@@ -101,41 +93,6 @@ export default function DemonstrationsPage() {
               <p style={{ color: "var(--muted)", marginTop: 6 }}>{v.description}</p>
             </div>
           </motion.div>
-        ))}
-      </div>
-
-      {/* ── Flight Reports ── */}
-      <motion.h2
-        style={{ marginTop: "50px" }}
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.4 }}
-      >
-        Flight Reports
-      </motion.h2>
-
-      <div className="report-cards">
-        {reports.map((r, i) => (
-          <motion.a
-            key={r.id}
-            href={r.href}
-            target="_blank"
-            className="report-card-link"
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.15 * i + 0.4 }}
-          >
-            <div className="report-icon">📄</div>
-            <div className="report-link-info">
-              <h3>{r.title}</h3>
-              <p>{r.date}</p>
-            </div>
-            <span className="status-badge badge-deployed">
-              <span className="status-dot dot-green" />
-              COMPLETE
-            </span>
-            <span className="report-download-arrow">↓</span>
-          </motion.a>
         ))}
       </div>
 
